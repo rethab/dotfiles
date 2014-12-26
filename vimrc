@@ -1,5 +1,9 @@
 " GENERAL SETTINGS
 
+" Use Vim settings, rather than Vi settings (much better!).
+" This must be first, because it changes other options as a side effect.
+set nocompatible
+
 " Pathogen (put plugins in dir 'bundle')
 execute pathogen#infect()
 
@@ -9,9 +13,7 @@ set runtimepath^=~/.vim/bundle/ctrlp.vim
 set background=dark
 colorscheme solarized
 set gfn=Monospace\ 12
-
 set title " set title in terminal (filename)
-set mouse=a
 set noerrorbells " stfu
 set incsearch "Lookahead as search pattern is specified
 set ignorecase "generally ignore cases in search
@@ -25,6 +27,14 @@ set hls "highlight search
 set encoding=utf-8
 set noshowmode " Suppress mode changes messages
 set scrolloff=2 " Begin scrolling when 2 lines before bottom
+
+" allow backspacing over everything in insert mode
+set backspace=indent,eol,start
+
+" In many terminal emulators the mouse works just fine, thus enable it.
+if has('mouse')
+  set mouse=a
+endif
 
 " Generally sane behavior
 set tabstop=8 "A tab is 8 spaces
