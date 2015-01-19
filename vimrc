@@ -139,7 +139,7 @@ let g:ctrlp_cmd = 'CtrlP'
 let g:ctrlp_working_path_mode = 'ra'
 " some sane ignores
 let g:ctrlp_custom_ignore = {
-  \ 'dir':  '\v[\/](git|hg|svn|dist)$',
+  \ 'dir':  '\v[\/](git|hg|svn|dist|cache)$',
   \ 'file': '\v\.(swp|zip|exe|so|dll|o|hi)$',
   \ }
 
