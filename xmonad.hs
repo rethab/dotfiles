@@ -63,7 +63,6 @@ keybindings =
         [
           -- lock with ctrl-alt-l
           ((altKey .|. controlMask, xK_l ), spawn "xscreensaver-command --lock")
-        , ((altKey .|. shiftMask  , xK_q ), spawn "sudo shutdown -h now")
 
         -- workspace movements
         , ((altKey,               xK_n), moveTo  Next EmptyWS)
