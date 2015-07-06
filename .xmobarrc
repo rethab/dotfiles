@@ -1,0 +1,24 @@
+Config { font = "-misc-fixed-*-*-*-*-10-*-*-*-*-*-*-*"
+       , borderColor = "black"
+       , border = TopB
+       , bgColor = "#1c1c1c"
+       , fgColor = "grey"
+       , position = Top
+       , lowerOnStart = False
+       , commands = [ Run DynNetwork ["-L","0","-H","100","--normal","green","--high","red"] 10
+                    , Run Cpu ["-L","3","-H","50","--normal","green","--high","red"] 10
+                    , Run PipeReader " :/home/rethab/taskpipe" "tasks"
+                    , Run Memory ["-t","RAM: <usedratio>%"] 10
+                    , Run DiskU [("sda1", "/ <usedp>% |"), ("sda2", "/home <usedp>% |")]
+                                ["-L", "20", "-H", "50", "-m", "1", "-p", "3"]
+                                20
+                    , Run StdinReader
+                    , Run Com "/usr/bin/zsh" ["-c", "setxkbmap -print | grep xkb_symbols | awk -F\"+\" '{print $2}'"] "keyboard" 30
+                    , Run Com "dropbox-cli" ["status"] "dropbox" 30
+                    , Run Com "/usr/bin/zsh" ["-c", "VBoxManage list runningvms | wc -l"] "novms" 30
+    		    , Run Date "%a %b %_d %Y %H:%M:%S" "date" 10
+                    ]
+       , sepChar = "%"
+       , alignSep = "}{"
+       , template = "%StdinReader% }{ <fc=#04b4ae>%tasks%</fc> | <fc=#ff00bf>VMs: %novms%</fc> | <fc=#04b4ae>%dropbox%</fc>  | <fc=#ff00bf>%cpu%</fc> | <fc=#ee9a00>%disku%</fc> | <fc=#04b4ae>%memory%</fc> | <fc=#ff00bf>%dynnetwork%</fc> | <fc=#04b4ae>%keyboard%</fc> |<fc=#ff00bf>Spheres of Madness</fc> | <fc=#ee9a00>%date%</fc>"
+       }

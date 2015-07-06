@@ -1,0 +1,64 @@
+[core]
+    editor = vim
+[user]
+    email = rethab@rethab.ch
+    name = Reto Hablützel
+[help]
+    autocorrect = 1
+[push]
+    default = simple
+[pull]
+    rebase = preserve
+[color]
+    diff = auto
+    status = auto
+    branch = auto
+    grep = always
+[color "grep"]
+    filename = green
+    linenumber = blue
+    separator = white
+[color "status"]
+    changed = yellow
+    added = green
+    untracked = red
+[status]
+    submoduleSummary = true
+    showUntrackedFiles = all
+[merge]
+    # merge with no argument merges with upstream
+    defaultToUpstream = true 
+[rebase]
+    autosquash = true
+[url "git@10.124.0.122:"]
+    # use pretty urls like 'git clone futuretek:atlantic/acop.git'
+    insteadOf = futuretek:
+[diff "zip"]
+    textconv = unzip -v
+[diff "pdf"]
+    textconv = pdfinfo
+[diff "bin"]
+    textconv = hexdump -v -C
+[alias]
+    lal          = status
+    lala         = status
+    cam          = "!f() { git add --all; git commit -m \"$1\"; }; f"
+    cm           = commit -m
+    car          = commit -a --amend -C HEAD
+    co           = checkout
+    cp           = cherry-pick
+    bu           = branch --no-merged
+    su           = submodule update --init
+    fm           = merge --ff-only
+    fl           = push --force-with-lease
+    prettygraph  = log --graph --simplify-by-decoration --pretty=format:'%d' --all
+    showbranches = branch --list -r
+    showtags     = tag --list
+    difw         = diff --word-diff=color --word-diff-regex=.
+    difc         = diff --cached
+    search       = log --grep
+    ls           = log --oneline --decorate
+    lr           = reflog show --date=relative
+    hash         = "!f() { git log --oneline | grep $1 | awk '{print $1}'; }; f"
+[rerere]
+	enabled = 1
