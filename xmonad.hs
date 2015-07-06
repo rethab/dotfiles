@@ -79,30 +79,20 @@ keybindings =
         , ((altKey .|. shiftMask, xK_h), sendMessage MirrorExpand)
         , ((altKey .|. shiftMask, xK_l), sendMessage MirrorShrink)
 
-        -- setup monitors
-        , ((linKey, xK_h), spawn twoextmons)
-
         -- keyboard layout switch
         , ((linKey, xK_u), spawn "setxkbmap us")
         , ((linKey, xK_s), spawn "setxkbmap ch")
 
         -- applications
         , ((linKey, xK_f), runOrRaise "firefox" (className =? "Firefox"))
-        , ((linKey, xK_e), spawn "evince")
-        , ((linKey, xK_n), spawn "netbeans")
         , ((linKey, xK_r), spawn redshift)
-        , ((linKey, xK_m), spawn lastfmnowplaying)
         , ((linKey, xK_d), spawn dropboxstart)
-        , ((linKey, xK_v), spawn connectvpn)
         , ((linKey, xK_p), spawn "sleep 0.2; scrot -s")
 
         ]
 
 redshift = "redshift -l 47.523809:9.0882"
-lastfmnowplaying = "~/Dropbox/Scripts/lastfm-nowplaying.sh"
-dropboxstart = "dropbox start"
-twoextmons = "~/Dropbox/Scripts/fut-multihead.sh"
-connectvpn = "~/.openvpn/connectvpn"
+dropboxstart = "dropbox-cli start"
 
 multihead= [ ((m .|. altKey, k), windows $ f i)
                  | (i, k) <- zip myWorkspaces [xK_1 .. xK_9]
