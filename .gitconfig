@@ -30,9 +30,6 @@
     defaultToUpstream = true 
 [rebase]
     autosquash = true
-[url "git@10.124.0.122:"]
-    # use pretty urls like 'git clone futuretek:atlantic/acop.git'
-    insteadOf = futuretek:
 [diff "zip"]
     textconv = unzip -v
 [diff "pdf"]
