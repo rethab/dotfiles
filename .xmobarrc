@@ -5,7 +5,7 @@ Config { font = "-misc-fixed-*-*-*-*-10-*-*-*-*-*-*-*"
        , fgColor = "grey"
        , position = Top
        , lowerOnStart = False
-       , commands = [ Run DynNetwork ["-L","0","-H","100","--normal","green","--high","red"] 10
+       , commands = [ Run Wireless "wlp2s0" [] 30
                     , Run Cpu ["-L","3","-H","50","--normal","green","--high","red"] 10
                     , Run Volume "default" "Master" [] 10
                     , Run Battery [] 10
@@ -18,5 +18,5 @@ Config { font = "-misc-fixed-*-*-*-*-10-*-*-*-*-*-*-*"
                     ]
        , sepChar = "%"
        , alignSep = "}{"
-       , template = "%StdinReader% }{ <fc=#04b4ae>%dropbox%</fc> | <fc=#ff00bf>%cpu%</fc> | <fc=#ee9a00>%disku%</fc> | <fc=#04b4ae>%memory%</fc> | <fc=#ff00bf>%dynnetwork%</fc> | <fc=#04b4ae>%keyboard%</fc> | <fc=#ff00bf>%default:Master%</fc> | <fc=#ee9a00>%date%</fc> | <fc=#04b4ae>%battery%</fc> "
+       , template = "%StdinReader% }{ <fc=#04b4ae>%dropbox%</fc> | <fc=#ff00bf>%cpu%</fc> | <fc=#ee9a00>%disku%</fc> | <fc=#04b4ae>%memory%</fc> | <fc=#ff00bf>%wlp2s0wi%</fc> | <fc=#04b4ae>%keyboard%</fc> | <fc=#ff00bf>%default:Master%</fc> | <fc=#ee9a00>%date%</fc> | <fc=#04b4ae>%battery%</fc> "
        }
