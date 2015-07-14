@@ -1,9 +1,8 @@
 # Path to your oh-my-zsh configuration.
 ZSH=$HOME/.oh-my-zsh
 
-ZSH_THEME="darkblood"
-
-plugins=(git archlinux vi-mode vagrant mvn colored-man cabal)
+# systemd: creates alias sc-xx=systemctl xx
+plugin=(archlinux cabal colored-man git systemd vagrant vi-mode)
 
 source $ZSH/oh-my-zsh.sh
 
@@ -21,24 +20,17 @@ export EDITOR=vim
 bindkey -v
 bindkey ^R history-incremental-search-backward
 
-# ZSH Style Path
 path+=('/home/rethab/.cabal/bin')
-
 export PATH
-
-export M2_HOME=/opt/maven
-export JAVA_HOME=/opt/jdk1.7.0_45
 
 # Linux
 alias ls='ls --color=auto'
-alias mkdir='mkdir -p'
 alias cp='cp -i'
 alias mv='mv -i'
 alias ln='ln -i'
 alias dmesg='dmesg --human'
 alias :q='exit'
 alias grep='grep --color=always'
-alias ccat='pygmentize -g'
 
 alias unlockssh='eval $(ssh-agent) && ssh-add'
 
@@ -46,13 +38,7 @@ alias unlockssh='eval $(ssh-agent) && ssh-add'
 alias Y='yaourt'
 
 # Git
-alias lala='git lala'
-
-alias ls='ls --color=auto'
-alias mkdir='mkdir -p'
-alias cp='cp -i'
-alias mv='mv -i'
-alias ln='ln -i'
+alias lala='git status'
 
 # https://github.com/zsh-users/zsh-syntax-highlighting
 source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
@@ -60,3 +46,6 @@ source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zs
 # https://github.com/rupa/z
 export _Z_DATA=~/.z/data
 source ~/mirror/z/z.sh
+
+# arch linux java switching
+source /etc/profile.d/jre.sh
