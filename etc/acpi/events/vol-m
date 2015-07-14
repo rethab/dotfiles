@@ -1,0 +1,3 @@
+event=button/mute
+action=/etc/acpi/actions/sound-mute.sh
+#action=amixer -D default set Master toggle

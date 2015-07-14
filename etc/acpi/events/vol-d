@@ -1,0 +1,2 @@
+event=button/volumedown
+action=amixer -c 1 sset Master 5%%-
