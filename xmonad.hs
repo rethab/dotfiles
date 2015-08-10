@@ -63,6 +63,7 @@ keybindings =
         [
           -- lock with ctrl-alt-l
           ((altKey .|. controlMask, xK_l ), spawn "xscreensaver-command --lock")
+        , ((altKey .|. shiftMask,   xK_q),  spawn "sudo shutdown -h now")
 
         -- workspace movements
         , ((altKey,               xK_n), moveTo  Next EmptyWS)
@@ -88,10 +89,16 @@ keybindings =
         , ((linKey, xK_d), spawn dropboxstart)
         , ((linKey, xK_p), spawn "sleep 0.2; scrot -s")
 
+
+        , ((linKey, xK_h), spawn hdmionly)
+        , ((linKey, xK_l), spawn laptoponly)
+
         ]
 
 redshift = "redshift -l 47.523809:9.0882"
 dropboxstart = "dropbox-cli start"
+hdmionly = "xrandr --output eDP1 --off --output HDMI2 --auto"
+laptoponly = "xrandr --output eDP1 --auto --output HDMI2 --off"
 
 multihead= [ ((m .|. altKey, k), windows $ f i)
                  | (i, k) <- zip myWorkspaces [xK_1 .. xK_9]

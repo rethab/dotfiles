@@ -49,3 +49,15 @@ source ~/mirror/z/z.sh
 
 # arch linux java switching
 source /etc/profile.d/jre.sh
+
+
+### Aliases for Nezasa dev
+alias playdev='activator -Dconfig.file=conf/application-dev.${USER}.conf'
+alias playdevdebug='activator -jvm-debug 9999 -Dconfig.file=conf/application-dev.${USER}.conf'
+alias playdevworker='activator -Dconfig.file=conf/application-dev.${USER}.conf -Dapplication.global=Worker'
+
+PROJECT_PATH="~/secure/dev/platform/"
+alias mongo_dev="${PROJECT_PATH}/etc/dev/alias/mongo_dev.sh"
+alias mongo_dev_clone="${PROJECT_PATH}/etc/release/cloneDatabase/cloneDatabase.sh --local"
+alias mongo_dev_dump="${PROJECT_PATH}/etc/dev/alias/mongo_dev_dump.sh"
+alias mongo_dev_restore="${PROJECT_PATH}/etc/dev/alias/mongo_dev_restore.sh"
