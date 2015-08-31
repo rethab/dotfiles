@@ -2,7 +2,7 @@
 ZSH=$HOME/.oh-my-zsh
 
 # systemd: creates alias sc-xx=systemctl xx
-plugin=(archlinux cabal colored-man git systemd vagrant vi-mode)
+plugin=(archlinux colored-man git systemd vi-mode heroku sbt)
 
 source $ZSH/oh-my-zsh.sh
 
@@ -21,6 +21,7 @@ bindkey -v
 bindkey ^R history-incremental-search-backward
 
 path+=('/home/rethab/.cabal/bin')
+path+=('/opt/mongodb/bin')
 export PATH
 
 # Linux
@@ -61,3 +62,4 @@ alias mongo_dev="${PROJECT_PATH}/etc/dev/alias/mongo_dev.sh"
 alias mongo_dev_clone="${PROJECT_PATH}/etc/release/cloneDatabase/cloneDatabase.sh --local"
 alias mongo_dev_dump="${PROJECT_PATH}/etc/dev/alias/mongo_dev_dump.sh"
 alias mongo_dev_restore="${PROJECT_PATH}/etc/dev/alias/mongo_dev_restore.sh"
+alias sbt='sbt -mem 2496'
