@@ -32,14 +32,22 @@ alias ln='ln -i'
 alias dmesg='dmesg --human'
 alias :q='exit'
 alias grep='grep --color=always'
+alias sudo='sudo -E'
+
+# Git
+alias g='git grep'
+alias gl='git lala2'
+alias gm='git cam2'
+alias go='git co2'
+alias gp='git co2 -'
+
+alias lala='echo "use gl"'
 
 alias unlockssh='eval $(ssh-agent) && ssh-add'
 
 # Arch
 alias Y='yaourt'
 
-# Git
-alias lala='git status'
 
 # https://github.com/zsh-users/zsh-syntax-highlighting
 source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh

@@ -37,13 +37,16 @@
 [diff "bin"]
     textconv = hexdump -v -C
 [alias]
-    lal          = status
-    lala         = status
-    cam          = "!f() { git add --all; git commit -m \"$1\"; }; f"
+    lala         = "!f() { echo 'dude, use lala'; exit 1; }; f"
+    lala2        = status
+    cam          = "!f() { echo 'dude, use gm'; exit 1; }; f"
+    cam2         = "!f() { git add --all; git commit -m \"$1\"; }; f"
     issue        = "!f() { git checkout -b feature/rh_issue$1 develop; git push --set-upstream origin feature/rh_issue$1; }; f"
     cm           = commit -m
     car          = commit -a --amend -C HEAD
-    co           = checkout
+    co           = "!f() { echo 'dude, use go'; exit 1; }; f"
+    co2          = checkout
+    praise       = blame
     cp           = cherry-pick
     bu           = branch --no-merged
     su           = submodule update --init
