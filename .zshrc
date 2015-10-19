@@ -40,6 +40,7 @@ alias gl='git lala2'
 alias gm='git cam2'
 alias go='git co2'
 alias gp='git co2 -'
+alias gu='go develop && git pull && go -'
 
 alias lala='echo "use gl"'
 
@@ -64,6 +65,8 @@ source /etc/profile.d/jre.sh
 alias playdev='activator -Dconfig.file=conf/application-dev.${USER}.conf'
 alias playdevdebug='activator -jvm-debug 9999 -Dconfig.file=conf/application-dev.${USER}.conf'
 alias playdevworker='activator -Dconfig.file=conf/application-dev.${USER}.conf -Dapplication.global=Worker'
+
+(echo $SBT_OPTS | grep Trireme > /dev/null) && { echo 'Warn: Using Trireme'; } 
 
 PROJECT_PATH="~/secure/dev/platform/"
 alias mongo_dev="${PROJECT_PATH}/etc/dev/alias/mongo_dev.sh"
