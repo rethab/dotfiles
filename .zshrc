@@ -62,7 +62,7 @@ source /etc/profile.d/jre.sh
 
 
 ### Aliases for Nezasa dev
-alias playdev='activator -Dconfig.file=conf/application-dev.${USER}.conf'
+alias playdev='activator -jvm-debug 9999 -Dconfig.file=conf/application-dev.${USER}.conf -Dhttps.port=9443'
 alias playdevdebug='activator -jvm-debug 9999 -Dconfig.file=conf/application-dev.${USER}.conf'
 alias playdevworker='activator -Dconfig.file=conf/application-dev.${USER}.conf -Dapplication.global=Worker'
 

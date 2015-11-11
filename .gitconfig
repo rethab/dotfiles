@@ -37,7 +37,9 @@
 [diff "bin"]
     textconv = hexdump -v -C
 [alias]
+    ud           = commit --amend --no-edit --date=now
     lala         = "!f() { echo 'dude, use lala'; exit 1; }; f"
+    pp           = "!f() { git pull && git push; }; f"
     lala2        = status
     cam          = "!f() { echo 'dude, use gm'; exit 1; }; f"
     cam2         = "!f() { git add --all; git commit -m \"$1\"; }; f"

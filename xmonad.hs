@@ -100,7 +100,7 @@ redshift = "redshift -l 47.523809:9.0882"
 dropboxstart = "dropbox-cli start"
 hdmionly = "xrandr --output eDP1 --off --output HDMI2 --auto"
 laptoponly = "xrandr --output eDP1 --auto --output HDMI2 --off"
-bothscreens = "xrandr --output eDP1 --mode 1024x576 --output HDMI2 --auto --primary --right-of eDP1"
+bothscreens = "xrandr --output eDP1 --mode 1368x768 --output HDMI2 --auto --primary --right-of eDP1"
 
 multihead= [ ((m .|. altKey, k), windows $ f i)
                  | (i, k) <- zip myWorkspaces [xK_1 .. xK_9]
