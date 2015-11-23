@@ -21,7 +21,6 @@ bindkey -v
 bindkey ^R history-incremental-search-backward
 
 path+=('/home/rethab/.cabal/bin')
-path+=('/opt/mongodb/bin')
 export PATH
 
 # Linux
@@ -62,8 +61,7 @@ source /etc/profile.d/jre.sh
 
 
 ### Aliases for Nezasa dev
-alias playdev='activator -jvm-debug 9999 -Dconfig.file=conf/application-dev.${USER}.conf -Dhttps.port=9443'
-alias playdevdebug='activator -jvm-debug 9999 -Dconfig.file=conf/application-dev.${USER}.conf'
+alias playdev='activator -jvm-debug 9999 -Dconfig.file=conf/application-dev.${USER}.conf -Dhttps.port=9443 -Dhttps.keyStore=etc/dev/ssl/nezasa-test.jks -Dhttps.keyStorePassword=nezasa-test'
 alias playdevworker='activator -Dconfig.file=conf/application-dev.${USER}.conf -Dapplication.global=Worker'
 
 (echo $SBT_OPTS | grep Trireme > /dev/null) && { echo 'Warn: Using Trireme'; } 
