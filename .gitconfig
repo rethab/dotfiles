@@ -57,7 +57,8 @@
     prettygraph  = log --graph --simplify-by-decoration --pretty=format:'%d' --all
     showbranches = branch --list -r
     showtags     = tag --list
-    difw         = diff --word-diff=color --word-diff-regex=.
+    difl         = diff --word-diff=color --word-diff-regex=.
+    difw         = diff --word-diff=color
     difc         = diff --cached
     search       = log --grep
     ls           = log --oneline --decorate
