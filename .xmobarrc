@@ -5,6 +5,7 @@ Config { font = "-misc-fixed-*-*-*-*-10-*-*-*-*-*-*-*"
        , fgColor = "grey"
        , position = Top
        , lowerOnStart = False
+       , overrideRedirect = False
        , commands = [ Run Wireless "wlp2s0" [] 30
                     , Run DynNetwork ["--template", "<rx>KB|<tx>KB"] 10
                     , Run Cpu ["-L","3","-H","50","--normal","green","--high","red"] 10
