@@ -64,5 +64,6 @@
     ls           = log --oneline --decorate
     lr           = reflog show --date=relative
     hash         = "!f() { git log --oneline | grep $1 | awk '{print $1}'; }; f"
+    lsu          = "!f() { git ls-files -v | grep '^[[:lower:]]'; }; f"
 [rerere]
 	enabled = 1
