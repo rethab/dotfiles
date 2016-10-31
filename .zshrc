@@ -1,5 +1,5 @@
 # Path to your oh-my-zsh configuration.
-ZSH=$HOME/.oh-my-zsh
+ZSH=/usr/share/oh-my-zsh/
 
 # systemd: creates alias sc-xx=systemctl xx
 plugin=(archlinux colored-man git systemd vi-mode heroku sbt)
@@ -55,7 +55,7 @@ source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zs
 
 # https://github.com/rupa/z
 export _Z_DATA=~/.z/data
-source ~/mirror/z/z.sh
+source ~/dev/z/z.sh
 
 # arch linux java switching
 source /etc/profile.d/jre.sh
