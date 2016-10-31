@@ -12,7 +12,7 @@ Config { font = "-misc-fixed-*-*-*-*-10-*-*-*-*-*-*-*"
                     , Run Volume "default" "Master" [] 10
                     , Run Battery [] 10
                     , Run Memory ["-t","RAM: <usedratio>%"] 10
-                    , Run DiskU [("sda2", "/ <usedp>% |"), ("sda3", "/home <usedp>%")] ["-L", "20", "-H", "50", "-m", "1", "-p", "3"] 20
+                    , Run DiskU [("sda2", "/ <usedp>% |"), ("mapper/home", "/home <usedp>%")] ["-L", "20", "-H", "50", "-m", "1", "-p", "3"] 20
                     , Run StdinReader
                     , Run Com "/usr/bin/zsh" ["-c", "setxkbmap -print | grep xkb_symbols | awk -F\"+\" '{print $2}'"] "keyboard" 30
                     , Run Com "dropbox-cli" ["status"] "dropbox" 30

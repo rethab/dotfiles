@@ -63,7 +63,6 @@ keybindings =
         [
           -- lock with ctrl-alt-l
           ((altKey .|. controlMask, xK_l ), spawn "xscreensaver-command --lock")
-        , ((altKey .|. shiftMask,   xK_q),  spawn "sudo shutdown -h now")
 
         -- workspace movements
         , ((altKey,               xK_n), moveTo  Next EmptyWS)
@@ -87,20 +86,19 @@ keybindings =
         , ((linKey, xK_f), runOrRaise "firefox" (className =? "Firefox"))
         , ((linKey, xK_r), spawn redshift)
         , ((linKey, xK_d), spawn dropboxstart)
-        , ((linKey, xK_p), spawn "sleep 0.2; scrot -s")
+        , ((linKey, xK_p), spawn "sleep 0.2; scrot '%Y-%m-%d_$wx$h.png' -s -e 'mv $f ~/shots/'")
+
 
 
         , ((linKey, xK_h), spawn hdmionly)
         , ((linKey, xK_l), spawn laptoponly)
-        , ((linKey, xK_b), spawn bothscreens)
 
         ]
 
 redshift = "redshift -l 47.523809:9.0882"
 dropboxstart = "dropbox-cli start"
-hdmionly = "xrandr --output eDP1 --off --output HDMI2 --auto"
-laptoponly = "xrandr --output eDP1 --auto --output HDMI2 --off"
-bothscreens = "xrandr --output eDP1 --mode 1368x768 --output HDMI2 --auto --primary --right-of eDP1"
+hdmionly = "xrandr --output eDP1 --off --output HDMI1 --auto && xrdb -remove"
+laptoponly = "xrandr --output eDP1 --auto --output HDMI1 --off && xrdb -load ~/.Xresources"
 
 multihead= [ ((m .|. altKey, k), windows $ f i)
                  | (i, k) <- zip myWorkspaces [xK_1 .. xK_9]

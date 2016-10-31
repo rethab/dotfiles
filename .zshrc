@@ -22,6 +22,7 @@ bindkey ^R history-incremental-search-backward
 
 path+=('/home/rethab/.cabal/bin')
 path+=('/usr/local/heroku/bin')
+path+=('/home/rethab/bin/mongodb-linux-x86_64-3.0.7/bin')
 export PATH
 
 # Linux
@@ -65,7 +66,7 @@ source /etc/profile.d/jre.sh
 alias playdev='activator -jvm-debug 9999 -Dconfig.file=conf/application-dev.${USER}.conf -Dhttps.port=9443 -Dhttps.keyStore=etc/dev/ssl/nezasa-test.jks -Dhttps.keyStorePassword=nezasa-test'
 alias playdevworker='activator -jvm-debug 9999 -Dconfig.file=conf/application-dev.${USER}.conf -Dapplication.global=Worker'
 alias patchdev='source ~/dev/platform/etc/db/db_env.sh && mongo ${DEV_DB_HOST}/${DEV_DB_NAME} -u ${DEV_DB_USER} -p${DEV_PASSWD} --ssl --sslCAFile ~/dev/platform/etc/db/ssl/${DEV_DB_SSL_CA_FILE}'
-alias mongostart='~/bin/mongodb-linux-x86_64-3.2.10/bin/mongod --dbpath ~/data/mongo --storageEngine mmapv1'
+alias mongostart='mongod --dbpath ~/data/mongo --storageEngine mmapv1'
 
 (echo $SBT_OPTS | grep Trireme > /dev/null) && { echo 'Warn: Using Trireme'; } 
 
