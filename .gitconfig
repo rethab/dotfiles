@@ -42,6 +42,7 @@
     ud           = commit --amend --no-edit --date=now
     lala         = "!f() { echo 'dude, use lala'; exit 1; }; f"
     lon          = log --name-only
+    onelog       = log --name-only
     dil          = diff --name-only
     pp           = "!f() { git pull && git push; }; f"
     recent       = "!f() { git branch --sort=-committerdate | grep rh_NTP --color=never | head -n 5; }; f"
