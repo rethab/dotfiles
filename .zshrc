@@ -74,4 +74,5 @@ alias mongo_dev="${PROJECT_PATH}/etc/dev/alias/mongo_dev.sh"
 alias mongo_dev_clone="${PROJECT_PATH}/etc/release/cloneDatabase/cloneDatabase.sh --local"
 alias mongo_dev_dump="${PROJECT_PATH}/etc/dev/alias/mongo_dev_dump.sh"
 alias mongo_dev_restore="${PROJECT_PATH}/etc/dev/alias/mongo_dev_restore.sh"
+alias memclean="echo 'flush_all' | nc localhost 11211"
 alias sbt='sbt -mem 2496'
