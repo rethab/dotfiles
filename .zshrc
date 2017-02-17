@@ -1,6 +1,8 @@
 # Path to your oh-my-zsh configuration.
 ZSH=/usr/share/oh-my-zsh/
 
+export NVM_AUTO_USE=true
+
 # systemd: creates alias sc-xx=systemctl xx
 plugins=(colored-man zsh-nvm)
 
