@@ -8,7 +8,7 @@ import XMonad.Hooks.DynamicLog   ( dynamicLogWithPP
                                  , ppOutput
                                  , xmobarPP )
 import XMonad.Hooks.SetWMName    ( setWMName)
-import XMonad.Hooks.ManageDocks  ( avoidStruts, manageDocks)
+import XMonad.Hooks.ManageDocks  ( avoidStruts, manageDocks, docksEventHook)
 import XMonad.Layout.ResizableTile (ResizableTall(..), MirrorResize(..))
 import XMonad.Layout.Named (named)
 import XMonad.Layout.NoBorders (smartBorders)
@@ -37,6 +37,7 @@ main = do
         , startupHook = setWMName "LG3D"
         , terminal = "terminology"
         , layoutHook = myLayoutHook
+        , handleEventHook = mconcat [ docksEventHook , handleEventHook defaultConfig ]
 
           -- get output to xmobar with hPutStrLn xmproc
           -- put first 50 characters of the windows title to the title area
@@ -98,7 +99,7 @@ keybindings =
 redshift = "redshift -l 47.523809:9.0882"
 dropboxstart = "dropbox-cli start"
 hdmionly = "xrandr --output eDP1 --off --output HDMI1 --auto && xrdb -remove"
-laptoponly = "xrandr --output eDP1 --auto --output HDMI1 --off && xrdb -load ~/.Xresources"
+laptoponly = "xrandr --output eDP1 --auto --mode 1920x1080 --output HDMI1 --off && xrdb -load ~/.Xresources"
 
 multihead= [ ((m .|. altKey, k), windows $ f i)
                  | (i, k) <- zip myWorkspaces [xK_1 .. xK_9]
