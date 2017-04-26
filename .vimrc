@@ -27,6 +27,7 @@ set hls "highlight search
 set encoding=utf-8
 set noshowmode " Suppress mode changes messages
 set scrolloff=2 " Begin scrolling when 2 lines before bottom
+set showcmd " Show command in bottom area
 
 " allow backspacing over everything in insert mode
 set backspace=indent,eol,start
@@ -70,6 +71,7 @@ iab    teh the
 
 "disable search highlights by hitting return (must be after unmapping CR from NERDTree)
 nnoremap <CR> :noh<CR><CR>
+
 
 " go to end of line from insert mode
 imap <C-l> <ESC>A
