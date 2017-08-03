@@ -50,6 +50,7 @@
     cam          = "!f() { echo 'dude, use gm'; exit 1; }; f"
     cam2         = "!f() { git add --all; git commit -m \"$1\"; }; f"
     issue        = "!f() { git checkout -b feature/rh_NTP-$1 develop; git push --set-upstream origin feature/rh_NTP-$1; }; f"
+    tfissue      = "!f() { git checkout -b feature/rh_TF-$1 develop; git push --set-upstream origin feature/rh_TF-$1; }; f"
     cm           = commit -m
     car          = commit -a --amend -C HEAD
     co           = "!f() { echo 'dude, use go'; exit 1; }; f"
@@ -73,3 +74,8 @@
     lsu          = "!f() { git ls-files -v | grep '^[[:lower:]]'; }; f"
 [rerere]
 	enabled = 1
+[filter "lfs"]
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true

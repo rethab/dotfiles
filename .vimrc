@@ -49,6 +49,9 @@ set nojoinspaces "Don't convert spaces to tabs
 " Visual block mode forms nices squares
 set virtualedit=block
 
+" Make gg=G work for XML
+set equalprg=xmllint\ --format\ -
+
 "enable type specific features
 syntax on
 filetype plugin on
@@ -65,8 +68,9 @@ autocmd FileType make setlocal noexpandtab
 autocmd FileType make setlocal nosmarttab
 
 " Common mistypings
-iab stauts status
-iab retrun return
+iab   stauts status
+iab   retrun return
+iab chekcout checkout
 iab    teh the
 
 "disable search highlights by hitting return (must be after unmapping CR from NERDTree)

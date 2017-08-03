@@ -12,14 +12,15 @@ Config { font = "-misc-fixed-*-*-*-*-12-*-*-*-*-*-*-*"
                     , Run Volume "default" "Master" [] 10
                     , Run Battery [] 10
                     , Run Memory ["-t","RAM: <usedratio>%"] 10
+                    , Run CoreTemp ["--template" , "Temp: <core0>|<core1>|<core2>", "--Low" , "70", "--High" , "80", "--low" , "green", "--normal" , "orange", "--high" , "red"] 50
                     , Run DiskU [("sda2", "/ <usedp>% |"), ("dm-0", "/home <usedp>%")] ["-L", "20", "-H", "50", "-m", "1", "-p", "3"] 20
                     , Run StdinReader
                     , Run Com "/usr/bin/zsh" ["-c", "setxkbmap -print | grep xkb_symbols | awk -F\"+\" '{print $2}'"] "keyboard" 30
                     , Run Com "dropbox-cli" ["status"] "dropbox" 30
-    		    , Run Date "%a %b %_d %Y %H:%M:%S" "date" 10
-    		    , Run DateZone "%H:%M" "de_DE.UTF-8" "Europe/Lisbon" "lisbonTime" 10
+    		    , Run DateZone "%a %b %_d %Y %H:%M:%S" "de_DE.UTF-8" "Europe/Lisbon" "lisbonTime" 10
+    		    , Run DateZone "%H:%M" "de_DE.UTF-8" "Europe/Zurich" "frauenfeldTime" 10
                     ]
        , sepChar = "%"
        , alignSep = "}{"
-       , template = "%StdinReader% }{ <fc=#04b4ae>%dropbox%</fc> | <fc=#ff00bf>%cpu%</fc> | <fc=#ee9a00>%disku%</fc> | <fc=#04b4ae>%memory%</fc> | <fc=#ff00bf>%wlp2s0wi% (%dynnetwork%)</fc> | <fc=#04b4ae>%keyboard%</fc> | <fc=#ff00bf>%default:Master%</fc> | <fc=#ee9a00>%date%</fc> <fc=#b37706>(Lis: %lisbonTime%)</fc> | <fc=#04b4ae>%battery%</fc> "
+       , template = "%StdinReader% }{ <fc=#04b4ae>%dropbox%</fc> | <fc=#ff00bf>%cpu%</fc> | <fc=#ee9a00>%disku%</fc> | <fc=#04b4ae>%memory%</fc> | <fc=#ff00bf>%wlp2s0wi% (%dynnetwork%)</fc> | <fc=#04b4ae>%keyboard%</fc> | <fc=#ff00bf>%default:Master%</fc> | <fc=#ee9a00>%lisbonTime%</fc> <fc=#b37706>(Fra: %frauenfeldTime%)</fc> | <fc=#04b4ae>%coretemp%</fc> | <fc=#ff00bf>%battery%</fc>  "
        }
