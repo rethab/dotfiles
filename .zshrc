@@ -69,7 +69,7 @@ source /etc/profile.d/jre.sh
 alias playdev='activator -mem 2496 -jvm-debug 9999 -Dconfig.file=/home/rethab/.application-dev.rethab.conf -Dhttps.port=9443 -Dhttps.keyStore=etc/dev/ssl/nezasa-test.jks -Dhttps.keyStorePassword=nezasa-test -Djavax.net.ssl.trustStore=conf/truststore_dev.jks'
 alias playdevworker="activator -mem 2496 -jvm-debug 9999 -Dconfig.file=/home/rethab/.application-dev.rethab.conf -Djavax.net.ssl.trustStore=conf/truststore_dev.jks 'runMain Worker'"
 alias patchdev='source ~/dev/platform/etc/db/db_env.sh && mongo ${DEV_DB_HOST_PRIMARY}/${DEV_DB_NAME} -u ${DEV_DB_USER} -p${DEV_PASSWD} --ssl'
-alias mongostart='sudo docker run -p 27017:27017 -v ~/data/mongo:/data/db mongo:3.4 --wiredTigerCacheSizeGB 1'
+alias mongostart='sudo docker run -p 27017:27017 -v ~/data/mongo:/data/db -d mongo:3.4 --wiredTigerCacheSizeGB 1'
 
 (echo $SBT_OPTS | grep Trireme > /dev/null) && { echo 'Warn: Using Trireme'; } 
 
