@@ -72,6 +72,8 @@
     lr           = reflog show --date=relative
     hash         = "!f() { git log --oneline | grep $1 | awk '{print $1}'; }; f"
     lsu          = "!f() { git ls-files -v | grep '^[[:lower:]]'; }; f"
+    sshow        = "!f() { git stash show stash^{/$*} -p; }; f"
+    sapply       = "!f() { git stash apply stash^{/$*}; }; f"
 [rerere]
 	enabled = 1
 [filter "lfs"]
