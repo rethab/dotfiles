@@ -70,6 +70,7 @@ autocmd FileType make setlocal nosmarttab
 " Common mistypings
 iab   stauts status
 iab   retrun return
+iab   serach search
 iab chekcout checkout
 iab    teh the
 
