@@ -39,6 +39,7 @@
 [diff "bin"]
     textconv = hexdump -v -C
 [alias]
+    ru           = rebase @{upstream}
     ud           = commit --amend --no-edit --date=now
     lala         = "!f() { echo 'dude, use lala'; exit 1; }; f"
     lon          = log --name-only
