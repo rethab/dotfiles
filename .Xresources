@@ -1,8 +1,24 @@
+! . vs * in resource names:
+!   https://unix.stackexchange.com/a/216865/39897
+!
+! arch wiki with config options
+!   https://wiki.archlinux.org/index.php/rxvt-unicode
+!
+! Troubleshooting per extensions
+!   URXVT_PERL_VERBOSITY=11 urxvt
+
+
 Xft.dpi:                    96
 Xft.antialias:              true
 Xft.rgba:                   rgb
 Xft.hinting:                true
 Xft.hintstyle:              hintslight
+
+! disable default bindings to make font resizing work
+URxvt.iso14755: false
+URxvt.iso14755_52: false
+
+URxvt.perl-ext-common: font-size,selection-to-clipboard,eval
 
 URxvt.depth: 0
 
@@ -10,12 +26,25 @@ URxvt.lineSpace: 0
 URxvt.allow_bold: false
 URxvt*font: xft:Ubuntu Mono:pizelSize=14
 URxvt*boldFont: xft:Ubuntu Mono:pizelSize=14
+URxvt*saveLines: 10000
 
 URxvt.letterSpace: -1
 URxvt.scrollStyle: rxvt
 URxvt.scrollBar: false
 URxvt.pointerBlank: true
 
+! https://unix.stackexchange.com/a/329556/39897
+URxvt.keysym.Shift-Control-V: eval:paste_clipboard
+URxvt.keysym.Shift-Control-C: eval:selection_to_clipboard
+
+! Do not scroll with output
+URxvt*scrollTtyOutput: false
+
+! scroll in relation to buffer (with mouse scroll or Shift+Page Up)
+URxvt*scrollWithBuffer: true
+
+! scroll back to the bottom on keypress
+URxvt*scrollTtyKeypress: true
 
 !!Source http://github.com/altercation/solarized
 
