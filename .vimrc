@@ -1,17 +1,9 @@
-" GENERAL SETTINGS
-
 " Use Vim settings, rather than Vi settings (much better!).
 " This must be first, because it changes other options as a side effect.
 set nocompatible
 
-" Pathogen (put plugins in dir 'bundle')
 execute pathogen#infect()
 
-" Load Ctrl-P Plugin
-set runtimepath^=~/.vim/bundle/ctrlp.vim
-
-set background=dark
-colorscheme solarized
 set gfn=Monospace\ 12
 set title " set title in terminal (filename)
 set noerrorbells " stfu
@@ -49,9 +41,6 @@ set nojoinspaces "Don't convert spaces to tabs
 " Visual block mode forms nices squares
 set virtualedit=block
 
-" Make gg=G work for XML
-set equalprg=xmllint\ --format\ -
-
 "enable type specific features
 syntax on
 filetype plugin on
@@ -63,14 +52,13 @@ if has('persistent_undo')
     set undofile
 endif
 
-" Makefile wants tabs
-autocmd FileType make setlocal noexpandtab
-autocmd FileType make setlocal nosmarttab
+" zR open all, zM close all, zc close, zo open
+set foldmethod=syntax
+set foldlevelstart=99
 
 " Common mistypings
 iab   stauts status
 iab   retrun return
-iab   serach search
 iab chekcout checkout
 iab    teh the
 
@@ -112,44 +100,3 @@ nnoremap <C-l> <C-w><C-w>
 map  <C-n> :NERDTreeToggle<CR>
 " open current file in nerdtree
 map <C-f> :NERDTreeFind<CR>
-
-" Syntastic Settings
-" language specific checkers
-let g:syntastic_haskell_checkers=['ghc_mod', 'hdevtools', 'hlint', 'scan']
-let g:syntastic_c_checkers=['gcc']
-let g:syntastic_c_splint_args='+posixlib'
-let g:syntastic_html_checkers=['tidy']
-let g:syntastic_python_checkers=['flake8']
-" tolerate angular attributes
-let g:syntastic_html_tidy_ignore_errors=[" proprietary attribute \"ng-"]
-" check for errors when file is first opened
-let g:syntastic_check_on_open=1
-" prettier symbols
-let g:syntastic_error_symbol='✗'
-let g:syntastic_warning_symbol='⚠'
-
-" show errors also in status line
-set statusline+=%#warningmsg#
-set statusline+=%{SyntasticStatuslineFlag()}
-set statusline+=%*
-
-" Taglist Settings
-map <C-t> :TlistToggle<CR>
-" close window if taglist is the last open window
-let g:Tlist_Exit_OnlyWindow=1
-
-" Ctrl-P Plugin
-" rebind defaults
-let g:ctrlp_map = '<c-p>'
-let g:ctrlp_cmd = 'CtrlP'
-" Start indexing at the closest scm root (ancestor)
-let g:ctrlp_working_path_mode = 'ra'
-" some sane ignores
-let g:ctrlp_custom_ignore = {
-  \ 'dir':  '\v[\/](git|hg|svn|dist|cache)$',
-  \ 'file': '\v\.(swp|zip|exe|so|dll|o|hi)$',
-  \ }
-
-" Neocomplete Plugin for advanced auto-completion
-let g:neocomplete#enable_at_startup = 1
-let g:neocomplete#enable_smart_case = 1
