@@ -11,7 +11,6 @@ set incsearch "Lookahead as search pattern is specified
 set ignorecase "generally ignore cases in search
 set smartcase " do not ignore cases if an uppercase is used
 set number
-set colorcolumn=80 " show a line after 80 chars
 set smartindent " position cursor and braces correctly
 set autowrite " automatically write changes when jumping between files
 set autoread " Always reload external changes
