@@ -35,7 +35,7 @@ main = do
           manageHook = manageDocks <+> myManageHook
                    <+> manageHook defaultConfig
         , startupHook = setWMName "LG3D"
-        , terminal = "terminology"
+        , terminal = "urxvt"
         , layoutHook = myLayoutHook
         , handleEventHook = mconcat [ docksEventHook , handleEventHook defaultConfig ]
 
