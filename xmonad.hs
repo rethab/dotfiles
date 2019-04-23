@@ -98,8 +98,8 @@ keybindings =
 
 redshift = "redshift -l 47.523809:9.0882"
 dropboxstart = "dropbox-cli start"
-hdmionly = "xrandr --output eDP1 --off --output HDMI1 --auto && xrdb -remove"
-laptoponly = "xrandr --output eDP1 --auto --mode 1920x1080 --output HDMI1 --off && xrdb -load ~/.Xresources"
+hdmionly = "xrandr --output eDP1 --off --output HDMI1 --auto"
+laptoponly = "xrandr --output eDP1 --auto --mode 1920x1080 --output HDMI1 --off"
 
 multihead= [ ((m .|. altKey, k), windows $ f i)
                  | (i, k) <- zip myWorkspaces [xK_1 .. xK_9]
