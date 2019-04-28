@@ -1,4 +1,4 @@
-alias playdev="make playdev"
+alias playdev="make playdevdebug"
 
 # Linux
 alias ls='ls --color=auto'
