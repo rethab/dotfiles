@@ -99,3 +99,10 @@ nnoremap <C-l> <C-w><C-w>
 map  <C-n> :NERDTreeToggle<CR>
 " open current file in nerdtree
 map <C-f> :NERDTreeFind<CR>
+
+" Syntasic
+set statusline+=%#warningmsg#
+set statusline+=%{SyntasticStatuslineFlag()}
+set statusline+=%*
+
+let g:rustfmt_autosave = 1
