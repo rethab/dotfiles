@@ -24,3 +24,4 @@ alias gu='go develop && git pull && go -'
 
 # Arch
 alias Y='yaourt'
+alias tresorit='/home/rethab/.local/share/tresorit/tresorit-cli'

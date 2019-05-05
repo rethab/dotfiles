@@ -7,6 +7,11 @@
 
 set -o vi
 
+export HISTSIZE=100000
+export HISTFILESIZE=100000
+export HISTCONTROL=ignoredups:erasedups  
+shopt -s histappend
+
 # liquidprompt
 export LP_PS1_POSTFIX="λ "
 source /usr/bin/liquidprompt
