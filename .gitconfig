@@ -8,7 +8,7 @@
 [push]
     default = simple
 [pull]
-    rebase = preserve
+    rebase = merges
 [color]
     diff = auto
     status = auto
@@ -40,26 +40,12 @@
     textconv = hexdump -v -C
 [alias]
     ru           = rebase @{upstream}
-    ud           = commit --amend --no-edit --date=now
-    lala         = "!f() { echo 'dude, use lala'; exit 1; }; f"
-    lon          = log --name-only
-    onelog       = log --name-only
-    dil          = diff --name-only
     pp           = "!f() { git pull && git push; }; f"
     recent       = "!f() { git branch --sort=-committerdate | grep rh_NTP --color=never | head -n 5; }; f"
-    lala2        = status
-    cam          = "!f() { echo 'dude, use gm'; exit 1; }; f"
-    cam2         = "!f() { git add --all; git commit -m \"$1\"; }; f"
     issue        = "!f() { git checkout -b feature/rh_NTP-$1 develop; git push --set-upstream origin feature/rh_NTP-$1; }; f"
-    tfissue      = "!f() { git checkout -b feature/rh_TF-$1 develop; git push --set-upstream origin feature/rh_TF-$1; }; f"
-    cm           = commit -m
     car          = commit -a --amend -C HEAD
-    co           = "!f() { echo 'dude, use go'; exit 1; }; f"
-    co2          = checkout
     praise       = blame
     cp           = cherry-pick
-    bu           = branch --no-merged
-    su           = submodule update --init
     fm           = merge --ff-only
     fl           = push --force-with-lease
     prettygraph  = log --graph --simplify-by-decoration --pretty=format:'%d' --all

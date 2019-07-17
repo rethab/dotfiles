@@ -16,12 +16,11 @@ alias bigfont="printf '\33]50;%s\007' \"xft:Terminus:pixelsize=20\""
 
 # Git
 alias g='git grep'
-alias gl='git lala2'
-alias gm='git cam2'
-alias go='git co2'
-alias gp='git co2 -'
+alias gl='git status'
+alias go='git checkout'
 alias gu='go develop && git pull && go -'
 
 # Arch
 alias Y='yaourt'
-alias tresorit='/home/rethab/.local/share/tresorit/tresorit-cli'
+
+alias sbt='sbt -J-Xmx4G'

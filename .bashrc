@@ -7,6 +7,9 @@
 
 set -o vi
 
+# avoid urxvt warnings when sshing into the wild
+export TERM="linux"
+
 export HISTSIZE=100000
 export HISTFILESIZE=100000
 export HISTCONTROL=ignoredups:erasedups  
@@ -19,6 +22,7 @@ source /usr/bin/liquidprompt
 export PATH="$PATH ~/.local/bin"
 
 export NZ_CONF_FILE="/home/rethab/.application.conf"
+export LOGGER_FILE="/home/rethab/.logback-info.xml"
 export DUMP_DIR="/home/rethab/data"
 
 source /usr/share/nvm/init-nvm.sh
