@@ -100,6 +100,9 @@ map  <C-n> :NERDTreeToggle<CR>
 " open current file in nerdtree
 map <C-f> :NERDTreeFind<CR>
 
+" use xmllint to format xml
+:set equalprg=xmllint\ --format\ -
+
 " Syntasic
 set statusline+=%#warningmsg#
 set statusline+=%{SyntasticStatuslineFlag()}
