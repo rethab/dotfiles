@@ -25,3 +25,5 @@ export DUMP_DIR="/home/rethab/data"
 source /usr/share/nvm/init-nvm.sh
 source /home/rethab/dev/dotfiles/alias.sh
 source /usr/share/z/z.sh
+
+function rcr() { clear && rustc "${1}".rs && ./$1; }
