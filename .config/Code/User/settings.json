@@ -11,5 +11,6 @@
         "before": ["j", "j"],
         "after": ["<Esc>"]
       }
-    ]
+    ],
+    "editor.formatOnSave": true
 }
