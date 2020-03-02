@@ -16,6 +16,7 @@ shopt -s histappend
 
 # liquidprompt
 export LP_PS1_POSTFIX="λ "
+export LP_ENABLE_RUNTIME=0
 source $DEV_DIR/liquidprompt/liquidprompt
 
 export PATH="$PATH ~/.local/bin"
