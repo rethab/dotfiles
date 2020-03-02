@@ -1,5 +1,3 @@
-alias playdev="make playdevdebug"
-
 # Linux
 alias ls='ls --color=auto'
 alias cp='cp -i'
@@ -22,5 +20,3 @@ alias gu='go develop && git pull && go -'
 
 # Arch
 alias Y='yaourt'
-
-alias sbt='sbt -J-Xmx4G'
