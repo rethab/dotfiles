@@ -1,7 +1,7 @@
 [core]
     editor = vim
 [user]
-    email = rh@nezasa.com
+    email = rethab@protonmail.ch
     name = Reto Hablützel
 [help]
     autocorrect = 1
@@ -40,9 +40,7 @@
     textconv = hexdump -v -C
 [alias]
     ru           = rebase @{upstream}
-    pp           = "!f() { git pull && git push; }; f"
     recent       = "!f() { git branch --sort=-committerdate | grep rh_NTP --color=never | head -n 5; }; f"
-    issue        = "!f() { git checkout -b feature/rh_NTP-$1 develop; git push --set-upstream origin feature/rh_NTP-$1; }; f"
     car          = commit -a --amend -C HEAD
     praise       = blame
     cp           = cherry-pick
