@@ -19,7 +19,7 @@ export LP_PS1_POSTFIX="λ "
 export LP_ENABLE_RUNTIME=0
 source $DEV_DIR/liquidprompt/liquidprompt
 
-export PATH="$PATH ~/.local/bin"
+export PATH="$PATH:/snap/bin"
 
 source $DEV_DIR/dotfiles/alias.sh
 source $DEV_DIR/z/z.sh
