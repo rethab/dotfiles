@@ -16,6 +16,24 @@
       ]
     }
   ],
+  "vim.normalModeKeyBindingsNonRecursive": [
+    {
+      "before": [
+        "<C-j>"
+      ],
+      "commands": [
+        "scrollLineDown",
+      ]
+    },
+    {
+      "before": [
+        "<C-k>"
+      ],
+      "commands": [
+        "scrollLineUp",
+      ]
+    },
+  ],
   "editor.formatOnSave": true,
   "window.zoomLevel": -1,
   "editor.fontSize": 16,
