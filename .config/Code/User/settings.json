@@ -1,15 +1,25 @@
 {
-    "editor.minimap.enabled": false,
-    "vim.easymotion": true,
-    "vim.incsearch": true,
-    "vim.useSystemClipboard": true,
-    "vim.useCtrlKeys": true,
-    "vim.hlsearch": true,
-    "vim.insertModeKeyBindings": [
-      {
-        "before": ["j", "j"],
-        "after": ["<Esc>"]
-      }
-    ],
-    "editor.formatOnSave": true
+  "editor.minimap.enabled": false,
+  "vim.easymotion": true,
+  "vim.incsearch": true,
+  "vim.useSystemClipboard": true,
+  "vim.useCtrlKeys": true,
+  "vim.hlsearch": true,
+  "vim.insertModeKeyBindings": [
+    {
+      "before": [
+        "j",
+        "j"
+      ],
+      "after": [
+        "<Esc>"
+      ]
+    }
+  ],
+  "editor.formatOnSave": true,
+  "window.zoomLevel": -1,
+  "editor.fontSize": 16,
+  "workbench.colorTheme": "Solarized Light",
+  "workbench.sideBar.location": "left",
+  "workbench.editor.enablePreview": false
 }

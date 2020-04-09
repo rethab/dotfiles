@@ -25,3 +25,5 @@ source $DEV_DIR/dotfiles/alias.sh
 source $DEV_DIR/z/z.sh
 
 function rcr() { clear && rustc "${1}".rs && ./$1; }
+
+alias playdev="script/dev_start"
