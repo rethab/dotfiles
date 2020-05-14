@@ -16,7 +16,8 @@ alias bigfont="printf '\33]50;%s\007' \"xft:Terminus:pixelsize=20\""
 alias g='git grep'
 alias gl='git status'
 alias go='git checkout'
-alias gu='go develop && git pull && go -'
+alias gum='go master && git pull && go -'
+alias gc='git add . && git commit -m '
 
 # Arch
 alias Y='yaourt'

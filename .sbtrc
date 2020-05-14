@@ -1,1 +1,2 @@
 alias to=test:compile
+alias q=exit

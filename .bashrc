@@ -20,6 +20,7 @@ export LP_ENABLE_RUNTIME=0
 source $DEV_DIR/liquidprompt/liquidprompt
 
 export PATH="$PATH:/snap/bin"
+export PATH="$PATH:/home/rethab/.local/share/coursier/bin"
 
 source $DEV_DIR/dotfiles/alias.sh
 source $DEV_DIR/z/z.sh
