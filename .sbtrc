@@ -1,2 +1,3 @@
 alias to=test:compile
 alias q=exit
+alias fmt=scalafmtAll

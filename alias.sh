@@ -9,6 +9,8 @@ alias grep='grep --color=always'
 alias grop='grep --color=never'
 alias sudo='sudo -E'
 
+alias weather='curl wttr.in'
+
 # Urxvt
 alias bigfont="printf '\33]50;%s\007' \"xft:Terminus:pixelsize=20\""
 
