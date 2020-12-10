@@ -8,6 +8,7 @@ alias :q='exit'
 alias grep='grep --color=always'
 alias grop='grep --color=never'
 alias sudo='sudo -E'
+alias csvawk='awk -v FPAT="([^,]*)|(\"([^\"]|\"\")+\")"'
 
 alias weather='curl wttr.in'
 
@@ -23,3 +24,5 @@ alias gc='git add . && git commit -m '
 
 # Arch
 alias Y='yaourt'
+
+function popup() { zenity --info --title "Kabooom" --text "$1" --timeout=2; }
