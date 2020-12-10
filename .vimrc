@@ -109,4 +109,4 @@ set statusline+=%{SyntasticStatuslineFlag()}
 set statusline+=%*
 
 let g:rustfmt_autosave = 1
-autocmd BufEnter *.rs colorscheme morning
+autocmd BufEnter *.rs colorscheme darkblue
