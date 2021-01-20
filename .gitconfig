@@ -4,7 +4,7 @@
     email = rethab@protonmail.ch
     name = Reto Hablützel
 [help]
-    autocorrect = 1
+    autocorrect = 0
 [push]
     default = simple
 [pull]
@@ -52,6 +52,7 @@
     difl         = diff --word-diff=color --word-diff-regex=.
     difw         = diff --word-diff=color
     difc         = diff --cached
+    diffcsv      = diff --word-diff=color --word-diff-regex="[^;[:space:]]+"
     search       = log --grep
     ls           = log --oneline --decorate
     lr           = reflog show --date=relative
