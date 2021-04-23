@@ -9,6 +9,7 @@ alias grep='grep --color=always'
 alias grop='grep --color=never'
 alias sudo='sudo -E'
 alias csvawk='awk -v FPAT="([^,]*)|(\"([^\"]|\"\")+\")"'
+alias plainvim='vim -u NONE'
 
 alias weather='curl wttr.in'
 
