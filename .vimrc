@@ -87,6 +87,8 @@ nnoremap <C-j> <C-e>
 nnoremap <C-k> <C-y>
 " Scroll page with space
 nnoremap <Space> <PageDown>
+" quit and save with YY
+nnoremap YY ZZ
 
 " NERDTree Settings
 " close vim if nerdtree is the last open window

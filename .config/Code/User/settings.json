@@ -43,11 +43,12 @@
     },
   ],
   "editor.formatOnSave": true,
-  "window.zoomLevel": 1,
+  "window.zoomLevel": 0,
   "editor.fontSize": 16,
   "workbench.colorTheme": "Solarized Light",
   "workbench.sideBar.location": "left",
   "workbench.editor.enablePreview": false,
   "dotty.trace.machineId": "3df724e6-7343-4df6-a4a0-de1bcebe9a8f",
-  "gitlens.codeLens.enabled": false
+  "gitlens.codeLens.enabled": false,
+  "extensions.ignoreRecommendations": true
 }
