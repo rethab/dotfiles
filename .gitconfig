@@ -2,6 +2,7 @@
     editor = vim
 [user]
     name = Reto Hablützel
+    useConfigOnly = true
 [help]
     autocorrect = 0
 [push]
