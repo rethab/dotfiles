@@ -109,6 +109,3 @@ map <C-f> :NERDTreeFind<CR>
 set statusline+=%#warningmsg#
 set statusline+=%{SyntasticStatuslineFlag()}
 set statusline+=%*
-
-let g:rustfmt_autosave = 1
-autocmd BufEnter *.rs colorscheme darkblue
