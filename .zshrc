@@ -1,19 +1,12 @@
-# Path to your oh-my-zsh configuration.
-ZSH=/usr/share/oh-my-zsh/
+TOOLS_DIR="$HOME/dev/tools"
+PRIVATE_DIR="$HOME/dev/private"
 
-# systemd: creates alias sc-xx=systemctl xx
-plugins=(colored-man zsh-nvm aws git)
-
-source $ZSH/oh-my-zsh.sh
-
-source /home/rethab/dev/dotfiles/alias.sh
+source $PRIVATE_DIR/dotfiles/alias.sh
 
 export LP_PS1_POSTFIX="λ "
-source /usr/bin/liquidprompt
+source $TOOLS_DIR/liquidprompt/liquidprompt
 
-# fix old GREP_OPTIONS in oh-my-zsh/lib/grep.zsh
-alias grep="/usr/bin/grep $GREP_OPTIONS"
-unset GREP_OPTIONS
+eval "$(zoxide init zsh)"
 
 set -o vi
 export EDITOR=vim
@@ -37,21 +30,3 @@ setopt HIST_IGNORE_SPACE         # Don't record an entry starting with a space.
 setopt HIST_SAVE_NO_DUPS         # Don't write duplicate entries in the history file.
 setopt HIST_REDUCE_BLANKS        # Remove superfluous blanks before recording entry.
 setopt HIST_VERIFY               # Don't execute immediately upon history expansion.
-
-path+=('/home/rethab/.cabal/bin')
-path+=('/usr/local/heroku/bin')
-path+=('/home/rethab/.local/bin')
-export PATH
-
-export TRANSPORTER_EXEC=~/bin/transporter-0.3.0-linux-amd64
-
-
-
-# https://github.com/rupa/z
-export _Z_DATA=~/.z/data
-source /usr/share/z/z.sh
-
-# arch linux java switching
-source /etc/profile.d/jre.sh
-
-source /usr/share/nvm/init-nvm.sh

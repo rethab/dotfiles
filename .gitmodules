@@ -16,9 +16,3 @@
 [submodule ".vim/bundle/neocomplete.vim"]
 	path = .vim/bundle/neocomplete.vim
 	url = https://github.com/shougo/neocomplete.vim
-[submodule ".vim/bundle/idris-vim"]
-	path = .vim/bundle/idris-vim
-	url = https://github.com/idris-hackers/idris-vim.git
-[submodule ".vim/bundle/rust.vim"]
-	path = .vim/bundle/rust.vim
-	url = https://github.com/rust-lang/rust.vim.git
