@@ -17,6 +17,7 @@ alias weather='curl wttr.in'
 alias bigfont="printf '\33]50;%s\007' \"xft:Terminus:pixelsize=20\""
 
 # Git
+alias gt='git'
 alias g='git grep'
 alias gl='git status'
 alias go='git checkout'
