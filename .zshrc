@@ -6,6 +6,7 @@ source $PRIVATE_DIR/dotfiles/alias.sh
 export LP_PS1_POSTFIX="λ "
 source $TOOLS_DIR/liquidprompt/liquidprompt
 
+# fuzzy moving with z
 eval "$(zoxide init zsh)"
 
 set -o vi
