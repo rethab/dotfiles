@@ -21,10 +21,13 @@ alias gt='git'
 alias g='git grep'
 alias gl='git status'
 alias go='git checkout'
-alias gum='go master && git pull && go -'
+alias gob='git checkout -b'
+alias gu='go main && git pull'
+alias gub='gu && go -'
 alias gc='git add . && git commit -m '
 
 # Arch
 alias Y='yaourt'
 
-function popup() { zenity --info --title "Kabooom" --text "$1" --timeout=2; }
+popup() { zenity --info --title "Kabooom" --text "$1" --timeout=2; }
+loop() { for _ in $(seq 100); do eval "$@"; done; }
