@@ -28,6 +28,3 @@ alias gc='git add . && git commit -m '
 
 # Arch
 alias Y='yaourt'
-
-popup() { zenity --info --title "Kabooom" --text "$1" --timeout=2; }
-loop() { for _ in $(seq 100); do eval "$@"; done; }
