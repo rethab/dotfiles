@@ -44,6 +44,7 @@
     pp           = "!f() { git pull; git push; }; f"
     car          = commit -a --amend -C HEAD
     praise       = blame
+    pus          = push
     cp           = cherry-pick
     fm           = merge --ff-only
     fl           = push --force-with-lease
