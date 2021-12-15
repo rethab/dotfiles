@@ -1,13 +1,19 @@
 TOOLS_DIR="$HOME/dev/tools"
 PRIVATE_DIR="$HOME/dev/private"
+CICD_DIR="$HOME/dev/cicd"
 
 source $PRIVATE_DIR/dotfiles/alias.sh
+source $CICD_DIR/cicd-scripts/alias.sh
 
 export LP_PS1_POSTFIX="λ "
 source $TOOLS_DIR/liquidprompt/liquidprompt
 
 # fuzzy moving with z
 eval "$(zoxide init zsh)"
+
+# enable the fuck
+eval $(thefuck --alias)
+
 
 set -o vi
 export EDITOR=vim

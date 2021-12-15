@@ -9,6 +9,8 @@
     default = current
 [pull]
     rebase = merges
+[init]
+    defaultBranch = main
 [color]
     diff = auto
     status = auto
