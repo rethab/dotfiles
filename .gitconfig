@@ -3,7 +3,7 @@
 [core]
     editor = vim
 [user]
-    name = Reto Hablützel
+    name = Reto
     useConfigOnly = true
 [help]
     autocorrect = 0
@@ -11,6 +11,7 @@
     default = current
 [pull]
     rebase = merges
+    default = current
 [init]
     defaultBranch = main
 [color]
