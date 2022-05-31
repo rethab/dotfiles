@@ -27,8 +27,12 @@ alias go='git checkout'
 alias gob='git checkout -b'
 alias gu='go main && git pull'
 alias gub='gu && go -'
-alias gc='git add . && git commit -m '
 alias gdpr='git push && gh pr create --fill'
+
+gc() {
+  git add . || return 1
+  git commit -m "$*" || return 1
+}
 
 # Arch
 alias Y='yaourt'
