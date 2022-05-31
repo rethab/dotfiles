@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Linux
 alias ls='ls -G'
 alias cp='cp -i'
