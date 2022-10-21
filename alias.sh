@@ -31,6 +31,10 @@ alias gu='go main && git pull'
 alias gub='gu && go -'
 alias gdpr='git push && gh pr create --fill'
 
+lgtm() {
+  gh lgtmoon | gh pr review $1 --approve -F -
+}
+
 gc() {
   git add . || return 1
   git commit -m "$*" || return 1
