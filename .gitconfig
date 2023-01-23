@@ -9,6 +9,7 @@
     autocorrect = 0
 [push]
     default = current
+    autoSetupRemote = true
 [pull]
     rebase = merges
     default = current

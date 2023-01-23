@@ -4,6 +4,7 @@ CICD_DIR="$HOME/dev/cicd"
 
 source $PRIVATE_DIR/dotfiles/alias.sh
 source $CICD_DIR/cicd-scripts/alias.sh
+source $HOME/alias.local
 
 export LP_PS1_POSTFIX="λ "
 source $TOOLS_DIR/liquidprompt/liquidprompt
