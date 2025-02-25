@@ -38,6 +38,10 @@
     autosquash = true
 [diff]
     compactionHeuristic = true
+	algorithm = histogram
+	colorMoved = plain
+	mnemonicPrefix = true
+	renames = true
 [diff "zip"]
     textconv = unzip -v
 [diff "pdf"]
@@ -77,3 +81,9 @@
     required = true
 [credential]
     helper = store
+[column]
+	ui = auto
+[branch]
+	sort = -committerdate
+[tag]
+	sort = version:refname
