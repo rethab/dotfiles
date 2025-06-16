@@ -1,0 +1,5 @@
+font-size = 15
+window-inherit-font-size = false
+
+# fixes Ctrl-[ to escape insert mode: https://github.com/ghostty-org/ghostty/discussions/7373
+keybind = ctrl+[=text:\x1b

@@ -26,7 +26,7 @@ alias gt='git'
 alias g='git grep'
 alias gp='git push'
 alias gl='git status'
-alias go='git checkout'
+alias goto='git checkout'
 
 gob() {
   remote=$(git remote)
@@ -39,8 +39,8 @@ gsu() {
   git branch --set-upstream-to="$remote/$branch" "$branch"
 }
 
-alias gu='go main && git pull'
-alias gub='gu && go -'
+alias gu='goto main && git pull'
+alias gub='gu && goto -'
 alias gdpr='git push && gh pr create --fill'
 
 lgtm() {
