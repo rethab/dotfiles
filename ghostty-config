@@ -1,3 +1,7 @@
+# ln -s ~/dev/private/dotfiles/ghostty-config ~/Library/Application\ Support/com.mitchellh.ghostty/config
+
+
+
 font-size = 15
 window-inherit-font-size = false
 
