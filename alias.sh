@@ -30,7 +30,8 @@ alias goto='git checkout'
 
 gob() {
   remote=$(git remote)
-  git checkout -b "$1" --track "$remote/$1"
+  git checkout -b "$1"
+  git branch --set-upstream-to="$remote/$1"
 }
 
 gsu() {
@@ -42,6 +43,7 @@ gsu() {
 alias gu='goto main && git pull'
 alias gub='gu && goto -'
 alias gdpr='git push && gh pr create --fill'
+alias ghw='gh pr view --web'
 
 lgtm() {
   gh lgtmoon | gh pr review "$1" --approve -F -
