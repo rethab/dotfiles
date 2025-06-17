@@ -54,5 +54,7 @@
   "window.zoomLevel": 0,
   "workbench.colorTheme": "Default Light Modern",
   "workbench.editor.enablePreview": false,
-  "workbench.sideBar.location": "left"
+  "workbench.sideBar.location": "left",
+  // extension: https://github.com/vscode-icons/vscode-icons (primarily prettier folder icons)
+  "workbench.iconTheme": "vscode-icons"
 }
