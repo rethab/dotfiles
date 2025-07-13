@@ -36,6 +36,7 @@ gsu() {
   git branch --set-upstream-to="$remote/$branch" "$branch"
 }
 
+~/dev/private/dotfiles/sysdeps.sh check 2>/dev/null || true
 alias syslist='~/dev/private/dotfiles/sysdeps.sh list'
 alias sysupgrade='~/dev/private/dotfiles/sysdeps.sh upgrade'
 

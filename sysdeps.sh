@@ -5,6 +5,7 @@
 # Upgrades all package managers (brew, sdk, npm)
 
 REASONS_FILE="$HOME/.sysdeps-reasons"
+TIMESTAMP_FILE="$HOME/.sysdeps-last-upgrade"
 
 ensure_reasons_file() {
     if [[ ! -f "$REASONS_FILE" ]]; then
@@ -38,6 +39,34 @@ get_reason() {
     grep "^$tool:$package:" "$REASONS_FILE" 2>/dev/null | cut -d: -f3-
 }
 
+check_upgrade_freshness() {
+    if [[ ! -f "$TIMESTAMP_FILE" ]]; then
+        echo -e "\033[31m┌─────────────────────────────────────────────────────────────┐\033[0m"
+        echo -e "\033[31m│ ⚠️  WARNING: System dependencies have never been upgraded!  │\033[0m"
+        echo -e "\033[31m│     Run 'sysupgrade' to upgrade all dependencies.           │\033[0m"
+        echo -e "\033[31m└─────────────────────────────────────────────────────────────┘\033[0m"
+        return 1
+    fi
+    
+    local last_upgrade=$(cat "$TIMESTAMP_FILE" 2>/dev/null)
+    local current_time=$(date +%s)
+    local week_in_seconds=$((7 * 24 * 60 * 60))
+    local time_diff=$((current_time - last_upgrade))
+    
+    if [[ $time_diff -gt $week_in_seconds ]]; then
+        local days_old=$((time_diff / (24 * 60 * 60)))
+        local last_upgrade_date=$(date -r "$last_upgrade" "+%Y-%m-%d %H:%M:%S" 2>/dev/null || echo "unknown")
+        echo -e "\033[33m┌─────────────────────────────────────────────────────────────┐\033[0m"
+        echo -e "\033[33m│ ⚠️  WARNING: Dependencies are $days_old days old!                  │\033[0m"
+        echo -e "\033[33m│     Last upgrade: $last_upgrade_date                       │\033[0m"
+        echo -e "\033[33m│     Consider running 'sysupgrade' to update.                │\033[0m"
+        echo -e "\033[33m└─────────────────────────────────────────────────────────────┘\033[0m"
+        return 1
+    fi
+    
+    return 0
+}
+
 show_package_with_reason() {
     local tool="$1"
     local package="$2"
@@ -58,6 +87,7 @@ Usage: $0 <command>
 Commands:
     list      List installed software packages with reasons
     upgrade   Upgrade all installed packages
+    check     Check if dependencies need upgrading (shows warnings)
     help      Show this help message
 
 Examples:
@@ -94,31 +124,52 @@ cmd_list() {
 }
 
 cmd_upgrade() {
+    local upgrade_failed=false
+    
     echo 'Brew:'
-    brew update
-    brew upgrade
-    brew upgrade --cask
+    if ! (brew update && brew upgrade && brew upgrade --cask); then
+        echo "ERROR: Brew upgrade failed"
+        upgrade_failed=true
+    fi
 
     echo
     echo 'sdk:'
     # SDK commands (check if available)
     if command -v sdk >/dev/null 2>&1; then
-        sdk update # update version information
-        sdk selfupdate # update sdk itself
-        sdk upgrade # upgrade tools
+        if ! (sdk update && sdk selfupdate && sdk upgrade); then
+            echo "ERROR: SDK upgrade failed"
+            upgrade_failed=true
+        fi
     elif [[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]]; then
         # Source SDKMAN if available
         source "$HOME/.sdkman/bin/sdkman-init.sh"
-        sdk update
-        sdk selfupdate
-        sdk upgrade
+        if ! (sdk update && sdk selfupdate && sdk upgrade); then
+            echo "ERROR: SDK upgrade failed"
+            upgrade_failed=true
+        fi
     else
         echo "SDK command not found - skipping SDK updates"
     fi
 
     echo
     echo 'NPM:'
-    npm update -g
+    if ! npm update -g; then
+        echo "ERROR: NPM upgrade failed"
+        upgrade_failed=true
+    fi
+    
+    # Only update timestamp if all upgrades succeeded
+    if [[ "$upgrade_failed" == "false" ]]; then
+        date +%s > "$TIMESTAMP_FILE"
+        echo
+        echo -e "\033[32m✓ All upgrades completed successfully!\033[0m"
+        echo -e "\033[32m  Timestamp saved to $TIMESTAMP_FILE\033[0m"
+    else
+        echo
+        echo -e "\033[31m✗ Some upgrades failed - timestamp not updated\033[0m"
+        echo -e "\033[31m  Fix the errors above and run upgrade again\033[0m"
+        exit 1
+    fi
 }
 
 case "$1" in
@@ -127,6 +178,9 @@ case "$1" in
         ;;
     upgrade)
         cmd_upgrade
+        ;;
+    check)
+        check_upgrade_freshness
         ;;
     help|--help|-h)
         usage
