@@ -17,9 +17,7 @@ alias weather='curl wttr.in'
 
 alias k=kubectl
 alias gw='./gradlew'
-
-# Urxvt
-alias bigfont="printf '\33]50;%s\007' \"xft:Terminus:pixelsize=20\""
+alias mw='./mvnw'
 
 # Git
 alias gt='git'
@@ -29,9 +27,7 @@ alias gl='git status'
 alias goto='git checkout'
 
 gob() {
-  remote=$(git remote)
   git checkout -b "$1"
-  git branch --set-upstream-to="$remote/$1"
 }
 
 gsu() {
@@ -40,19 +36,15 @@ gsu() {
   git branch --set-upstream-to="$remote/$branch" "$branch"
 }
 
+alias syslist='~/dev/private/dotfiles/sysdeps.sh list'
+alias sysupgrade='~/dev/private/dotfiles/sysdeps.sh upgrade'
+
 alias gu='goto main && git pull'
 alias gub='gu && goto -'
 alias gdpr='git push && gh pr create --fill'
 alias ghw='gh pr view --web'
 
-lgtm() {
-  gh lgtmoon | gh pr review "$1" --approve -F -
-}
-
 gc() {
   git add . || return 1
   git commit -m "$*" || return 1
 }
-
-# Arch
-alias Y='yaourt'
