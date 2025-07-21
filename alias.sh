@@ -20,7 +20,6 @@ alias gw='./gradlew'
 alias mw='./mvnw'
 
 # Git
-alias gt='git'
 alias g='git grep'
 alias gp='git push'
 alias gl='git status'

@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # System Dependencies Manager
-# Lists installed packages from brew/npm with reasons from ~/.sysdeps-reasons
-# Upgrades all package managers (brew, sdk, npm)
+# Lists installed packages from brew/npm/mas with reasons from ~/.sysdeps-reasons
+# Upgrades all package managers (brew, sdk, npm, mas)
 
 REASONS_FILE="$HOME/.sysdeps-reasons"
 TIMESTAMP_FILE="$HOME/.sysdeps-last-upgrade"
@@ -20,6 +20,7 @@ ensure_reasons_file() {
 # brew:git:Version control system for development
 # brew-cask:docker:Container development and deployment
 # npm:typescript:Static typing for JavaScript projects
+# mas:Keynote:Presentation software for work presentations
 EOF
             echo "Created $REASONS_FILE"
         else
@@ -111,6 +112,22 @@ cmd_list() {
     done < <(brew ls --casks -1)
 
     echo 
+    echo 'Mac App Store:'
+    if command -v mas >/dev/null 2>&1; then
+        mas list 2>/dev/null | while IFS= read -r line; do
+            if [[ -n "$line" ]]; then
+                # Parse mas list output: "ID   Name   (Version)"
+                app_name=$(echo "$line" | sed -E 's/^[0-9]+[[:space:]]+([^(]+)[[:space:]]*\([^)]+\)$/\1/' | sed 's/[[:space:]]*$//')
+                if [[ -n "$app_name" ]]; then
+                    show_package_with_reason "mas" "$app_name"
+                fi
+            fi
+        done
+    else
+        echo "  mas not installed - skipping Mac App Store apps"
+    fi
+
+    echo 
     echo 'NPM:'
     npm ls --global --parseable --depth=0 2>/dev/null | while IFS= read -r path; do
         if [[ -n "$path" ]]; then
@@ -130,6 +147,17 @@ cmd_upgrade() {
     if ! (brew update && brew upgrade && brew upgrade --cask); then
         echo "ERROR: Brew upgrade failed"
         upgrade_failed=true
+    fi
+
+    echo
+    echo 'Mac App Store:'
+    if command -v mas >/dev/null 2>&1; then
+        if ! mas upgrade; then
+            echo "ERROR: Mac App Store upgrade failed"
+            upgrade_failed=true
+        fi
+    else
+        echo "mas not installed - skipping Mac App Store updates"
     fi
 
     echo
