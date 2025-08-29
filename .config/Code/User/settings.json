@@ -56,5 +56,6 @@
   "workbench.editor.enablePreview": false,
   "workbench.sideBar.location": "left",
   // extension: https://github.com/vscode-icons/vscode-icons (primarily prettier folder icons)
-  "workbench.iconTheme": "vscode-icons"
+  "workbench.iconTheme": "vscode-icons",
+  "github.copilot.nextEditSuggestions.enabled": true
 }

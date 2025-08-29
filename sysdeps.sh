@@ -7,6 +7,10 @@
 REASONS_FILE="$HOME/.sysdeps-reasons"
 TIMESTAMP_FILE="$HOME/.sysdeps-last-upgrade"
 
+set -e
+
+trap 'echo "Exit status $? at line $LINENO from: $BASH_COMMAND"' ERR
+
 ensure_reasons_file() {
     if [[ ! -f "$REASONS_FILE" ]]; then
         echo "Reasons file not found at $REASONS_FILE"
@@ -21,6 +25,7 @@ ensure_reasons_file() {
 # brew-cask:docker:Container development and deployment
 # npm:typescript:Static typing for JavaScript projects
 # mas:Keynote:Presentation software for work presentations
+# custom:app-name:Manually installed applications not managed by package managers
 EOF
             echo "Created $REASONS_FILE"
         else
@@ -138,6 +143,14 @@ cmd_list() {
             fi
         fi
     done
+
+    echo 
+    echo 'Custom:'
+    if command -v claude >/dev/null 2>&1; then
+        show_package_with_reason "custom" "claude-code"
+    else
+        echo "  Claude Code not installed"
+    fi
 }
 
 cmd_upgrade() {
@@ -184,6 +197,17 @@ cmd_upgrade() {
     if ! npm update -g; then
         echo "ERROR: NPM upgrade failed"
         upgrade_failed=true
+    fi
+
+    echo
+    echo 'Claude Code:'
+    if command -v claude >/dev/null 2>&1; then
+        if ! claude update; then
+            echo "ERROR: Claude Code upgrade failed"
+            upgrade_failed=true
+        fi
+    else
+        echo "Claude Code not installed - skipping Claude Code updates"
     fi
     
     # Only update timestamp if all upgrades succeeded
