@@ -17,7 +17,17 @@ alias weather='curl wttr.in'
 
 alias k=kubectl
 alias gw='./gradlew'
-alias mw='./mvnw'
+mw() {
+  if [ ! -f "pom.xml" ]; then
+    echo "Error: No pom.xml found in current directory" >&2
+    return 1
+  fi
+  if [ -f "./mvnw" ]; then
+    ./mvnw "$@"
+  else
+    mvn "$@"
+  fi
+}
 
 # Git
 alias g='git grep'
