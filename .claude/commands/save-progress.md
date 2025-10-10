@@ -1,3 +1,7 @@
+---
+Edit(/tmp/progress.md)
+---
+
 # Save Progress Command
 
 Updates /tmp/progress.md with a comprehensive summary of all work completed in the current session.
