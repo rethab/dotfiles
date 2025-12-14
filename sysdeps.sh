@@ -177,14 +177,14 @@ cmd_upgrade() {
     echo 'sdk:'
     # SDK commands (check if available)
     if command -v sdk >/dev/null 2>&1; then
-        if ! (sdk update && sdk selfupdate && sdk upgrade); then
+        if ! (sdk update && sdk selfupdate); then
             echo "ERROR: SDK upgrade failed"
             upgrade_failed=true
         fi
     elif [[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]]; then
         # Source SDKMAN if available
         source "$HOME/.sdkman/bin/sdkman-init.sh"
-        if ! (sdk update && sdk selfupdate && sdk upgrade); then
+        if ! (sdk update && sdk selfupdate); then
             echo "ERROR: SDK upgrade failed"
             upgrade_failed=true
         fi
