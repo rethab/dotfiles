@@ -16,6 +16,7 @@ alias plainvim='vim -u NONE'
 alias weather='curl wttr.in'
 
 alias k=kubectl
+alias c=claude
 alias gw='./gradlew'
 mw() {
   if [ ! -f "pom.xml" ]; then
