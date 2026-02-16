@@ -16,8 +16,22 @@ alias plainvim='vim -u NONE'
 alias weather='curl wttr.in'
 
 alias k=kubectl
-alias c=claude
+
+c() {
+  local dir="$PWD"
+  local home="$HOME"
+  while [ "$dir" != "$home" ] && [ "$dir" != "/" ]; do
+    dir="$(dirname "$dir")"
+    if [ -f "$dir/.claude/CLAUDE.md" ]; then
+      CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1 claude --add-dir "$dir" "$@"
+      return
+    fi
+  done
+  claude "$@"
+}
+
 alias gw='./gradlew'
+
 mw() {
   if [ ! -f "pom.xml" ]; then
     echo "Error: No pom.xml found in current directory" >&2
