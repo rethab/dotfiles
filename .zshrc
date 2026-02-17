@@ -12,6 +12,7 @@ bindkey "^R" history-incremental-search-backward
 
 
 source /Users/rethab/dev/private/dotfiles/alias.sh
+[ -f ~/alias.local ] && source ~/alias.local
 
 . /opt/homebrew/etc/profile.d/z.sh
 
