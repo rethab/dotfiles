@@ -20,10 +20,16 @@ alias k=kubectl
 c() {
   local dir="$PWD"
   local home="$HOME"
+  # If first arg doesn't start with -, join all args as a single prompt
+  local prompt=""
+  if [ $# -gt 0 ] && [ "${1#-}" = "$1" ]; then
+    prompt="$*"
+    set -- -- "$prompt"
+  fi
   while [ "$dir" != "$home" ] && [ "$dir" != "/" ]; do
     dir="$(dirname "$dir")"
     if [ -f "$dir/.claude/CLAUDE.md" ]; then
-      CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1 claude --add-dir "$dir" -- "$@"
+      CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1 claude --add-dir "$dir" "$@"
       return
     fi
   done
