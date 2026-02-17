@@ -23,7 +23,7 @@ c() {
   while [ "$dir" != "$home" ] && [ "$dir" != "/" ]; do
     dir="$(dirname "$dir")"
     if [ -f "$dir/.claude/CLAUDE.md" ]; then
-      CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1 claude --add-dir "$dir" "$@"
+      CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1 claude --add-dir "$dir" -- "$@"
       return
     fi
   done
