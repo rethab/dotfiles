@@ -178,6 +178,19 @@ if [[ -n "$usage_data" ]]; then
             "$daily_color" "$five_hour_pct" "$daily_reset" \
             "$weekly_color" "$seven_day_pct" "$weekly_reset")
     fi
+
+    # Parse extra usage (only show if enabled)
+    extra_enabled=$(echo "$usage_data" | jq -r '.extra_usage.is_enabled // false' 2>/dev/null)
+    if [[ "$extra_enabled" == "true" ]]; then
+        extra_util=$(echo "$usage_data" | jq -r '.extra_usage.utilization // 0' 2>/dev/null)
+        extra_used=$(echo "$usage_data" | jq -r '.extra_usage.used_credits // 0' 2>/dev/null)
+        extra_limit=$(echo "$usage_data" | jq -r '.extra_usage.monthly_limit // 0' 2>/dev/null)
+        extra_pct=$(printf "%.0f" "$extra_util" 2>/dev/null || echo "0")
+        extra_color=$(get_usage_color "$extra_pct" 2>/dev/null || echo $'\033[32m')
+        extra_used_int=$(printf "%.0f" "$extra_used" 2>/dev/null || echo "0")
+        usage_info=$(printf '%s | Extra: %s%s%%\033[0m (%s/%s)' \
+            "$usage_info" "$extra_color" "$extra_pct" "$extra_used_int" "$extra_limit")
+    fi
 fi
 
 # Build the status line
