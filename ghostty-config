@@ -1,10 +1,21 @@
 # ln -s ~/dev/private/dotfiles/ghostty-config ~/Library/Application\ Support/com.mitchellh.ghostty/config
 
 
-
 font-size = 17
 window-inherit-font-size = false
 
 # fixes Ctrl-[ to escape insert mode: https://github.com/ghostty-org/ghostty/discussions/7373
 keybind = ctrl+[=text:\x1b
 keybind = shift+enter=text:\n
+
+# keybindings for split
+keybind = ctrl+h=goto_split:left
+keybind = ctrl+j=goto_split:bottom
+keybind = ctrl+k=goto_split:top
+keybind = ctrl+l=goto_split:right
+
+keybind = ctrl+a>h=new_split:left
+keybind = ctrl+a>j=new_split:down
+keybind = ctrl+a>k=new_split:up
+keybind = ctrl+a>l=new_split:right
+keybind = ctrl+a>f=toggle_split_zoom
