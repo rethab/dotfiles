@@ -8,6 +8,8 @@ window-inherit-font-size = false
 keybind = ctrl+[=text:\x1b
 keybind = shift+enter=text:\n
 
+split-divider-color = #888888
+
 # keybindings for split
 keybind = ctrl+h=goto_split:left
 keybind = ctrl+j=goto_split:bottom
