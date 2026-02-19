@@ -17,23 +17,49 @@ alias weather='curl wttr.in'
 
 alias k=kubectl
 
-c() {
+_claude_find_parent_claude_md() {
   local dir="$PWD"
-  local home="$HOME"
-  # If first arg doesn't start with -, join all args as a single prompt
-  local prompt=""
-  if [ $# -gt 0 ] && [ "${1#-}" = "$1" ]; then
-    prompt="$*"
-    set -- -- "$prompt"
-  fi
-  while [ "$dir" != "$home" ] && [ "$dir" != "/" ]; do
+  while [ "$dir" != "$HOME" ] && [ "$dir" != "/" ]; do
     dir="$(dirname "$dir")"
     if [ -f "$dir/.claude/CLAUDE.md" ]; then
-      CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1 claude --add-dir "$dir" "$@"
+      echo "$dir"
       return
     fi
   done
-  claude "$@"
+}
+
+_claude_discover_plugins() {
+  local dir="$PWD"
+  local -A seen
+  while [ "$dir" != "$HOME" ] && [ "$dir" != "/" ]; do
+    dir="$(dirname "$dir")"
+    if [ -d "$dir/.claude/plugins" ]; then
+      for p in "$dir"/.claude/plugins/*/; do
+        local name="$(basename "$p")"
+        if [ -d "${p}.claude-plugin" ] && [ -z "${seen[$name]}" ]; then
+          seen[$name]=1
+          echo "$p"
+        fi
+      done
+    fi
+  done
+}
+
+c() {
+  # If first arg doesn't start with -, join all args as a single prompt
+  if [ $# -gt 0 ] && [ "${1#-}" = "$1" ]; then
+    set -- -- "$*"
+  fi
+  local add_dir="$(_claude_find_parent_claude_md)"
+  local plugin_args=()
+  while IFS= read -r p; do
+    [ -n "$p" ] && plugin_args+=(--plugin-dir "$p")
+  done < <(_claude_discover_plugins)
+  if [ -n "$add_dir" ]; then
+    CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1 claude --add-dir "$add_dir" "${plugin_args[@]}" "$@"
+  else
+    claude "${plugin_args[@]}" "$@"
+  fi
 }
 
 alias gw='./gradlew'
