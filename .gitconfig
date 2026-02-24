@@ -50,7 +50,7 @@
     textconv = hexdump -v -C
 [alias]
     ru           = rebase @{upstream}
-    recent       = "!f() { git branch --sort=-committerdate | head -n 5; }; f"
+	recent = "!f() { git branch --sort=-committerdate --format='%(refname:short)' | head -n 5 | while read branch; do msg=$(git log -1 --format='%s' \"$branch\" 2>/dev/null); printf '%-30s %s\\n' \"$branch\" \"$msg\"; done; }; f"
     pp           = "!f() { git pull; git push; }; f"
     car          = commit -a --amend -C HEAD
     praise       = blame
