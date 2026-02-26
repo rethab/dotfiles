@@ -193,6 +193,28 @@ cmd_upgrade() {
     fi
 
     echo
+    echo 'nvm:'
+    # nvm is a shell function, source it if not available
+    if ! command -v nvm >/dev/null 2>&1 && [[ -s "$HOME/.nvm/nvm.sh" ]]; then
+        source "$HOME/.nvm/nvm.sh"
+    fi
+    if command -v nvm >/dev/null 2>&1; then
+        current_node=$(node --version 2>/dev/null)
+        if [[ -n "$current_node" ]]; then
+            major=$(echo "$current_node" | sed 's/^v//' | cut -d. -f1)
+            echo "Current: $current_node, upgrading to latest v$major.x..."
+            if ! nvm install "$major"; then
+                echo "ERROR: nvm upgrade failed"
+                upgrade_failed=true
+            fi
+        else
+            echo "No Node.js version detected - skipping nvm upgrade"
+        fi
+    else
+        echo "nvm not found - skipping nvm upgrade"
+    fi
+
+    echo
     echo 'NPM:'
     if ! npm update -g; then
         echo "ERROR: NPM upgrade failed"
