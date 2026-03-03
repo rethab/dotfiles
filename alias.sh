@@ -28,6 +28,17 @@ _claude_find_parent_claude_md() {
   done
 }
 
+_claude_find_parent_settings() {
+  local dir="$PWD"
+  while [ "$dir" != "$HOME" ] && [ "$dir" != "/" ]; do
+    dir="$(dirname "$dir")"
+    if [ -f "$dir/.claude/settings.json" ]; then
+      echo "$dir/.claude/settings.json"
+      return
+    fi
+  done
+}
+
 _claude_discover_plugins() {
   local dir="$PWD"
   local -A seen
@@ -51,14 +62,17 @@ c() {
     set -- -- "$*"
   fi
   local add_dir="$(_claude_find_parent_claude_md)"
+  local settings_file="$(_claude_find_parent_settings)"
   local plugin_args=()
   while IFS= read -r p; do
     [ -n "$p" ] && plugin_args+=(--plugin-dir "$p")
   done < <(_claude_discover_plugins)
+  local settings_args=()
+  [ -n "$settings_file" ] && settings_args=(--settings "$settings_file")
   if [ -n "$add_dir" ]; then
-    CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1 claude --add-dir "$add_dir" "${plugin_args[@]}" "$@"
+    CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1 claude --add-dir "$add_dir" "${plugin_args[@]}" "${settings_args[@]}" "$@"
   else
-    claude "${plugin_args[@]}" "$@"
+    claude "${plugin_args[@]}" "${settings_args[@]}" "$@"
   fi
 }
 
