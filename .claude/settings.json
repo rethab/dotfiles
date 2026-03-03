@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  },
+  "includeCoAuthoredBy": false,
+  "permissions": {
+    "allow": [
+      "Bash(./mvnw:*)",
+      "Bash(gh auth switch:*)",
+      "Bash(gh issue view:*)",
+      "Bash(gh pr diff:*)",
+      "Bash(gh pr list:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh release view:*)",
+      "Bash(gh run list:*)",
+      "Bash(gh run view:*)",
+      "Bash(gh search:*)",
+      "Bash(git add:*)",
+      "Bash(git diff:*)",
+      "Bash(git fetch:*)",
+      "Bash(git grep:*)",
+      "Bash(git log:*)",
+      "Bash(git ls-tree:*)"
+    ],
+    "deny": []
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "bash ~/.claude/statusline-command.sh"
+  },
+  "enabledPlugins": {
+    "context7@claude-plugins-official": true,
+    "frontend-design@claude-plugins-official": true
+  },
+  "spinnerVerbs": {
+    "mode": "replace",
+    "verbs": [
+      "Annihilating",
+      "Applying face mask to",
+      "Blast-beating the build pipeline",
+      "Blasting",
+      "Burning a church for backward compatibility with",
+      "Chugging palm-muted power chords at",
+      "Circle-pitting around race conditions in",
+      "Comparing business cards with",
+      "Cookie-monstering error logs from",
+      "Crowd-surfing the call stack of",
+      "Crucifying",
+      "Deathcore-decomposing",
+      "Decimating",
+      "Djent-ing the JSON for",
+      "Double-bass drumming through dependencies",
+      "Downtuning the database to drop B",
+      "Encore-requesting the build for",
+      "Growl-singing the changelog for",
+      "Headbanging to",
+      "Invoking the dark lord of garbage collection for",
+      "Kickstarting the wall of sound for",
+      "Making reservations at Dorsia for",
+      "Mosh-pitting with microservices in",
+      "Moshing through",
+      "Obliterating",
+      "Perfecting morning routine with",
+      "Pig-squealing at null pointers in",
+      "Playing an 11-minute prog solo over",
+      "Power-sliding into the git history of",
+      "Psychoanalyzing",
+      "Pulverizing",
+      "Returning videotapes to",
+      "Riffing on",
+      "Shredding",
+      "Slaying",
+      "Speed-picking through the stack trace of",
+      "Stage-diving into production with",
+      "Summoning daemons for",
+      "Thrashing",
+      "Throwing devil horns at",
+      "Tuning to drop D-eploy",
+      "Windmill headbanging past merge conflicts in"
+    ]
+  },
+  "skipDangerousModePermissionPrompt": true,
+  "feedbackSurveyState": {
+    "lastShownTime": 1754226203880
+  },
+  "mcpServers": {
+    "chrome-devtools": {
+      "args": [
+        "--executable-path",
+        "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser"
+      ]
+    }
+  },
+  "effortLevel": "medium"
+}
