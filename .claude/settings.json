@@ -7,12 +7,14 @@
   "permissions": {
     "allow": [
       "Bash(./mvnw:*)",
+      "Bash(wc:*)",
       "Bash(gh auth switch:*)",
       "Bash(gh issue view:*)",
       "Bash(gh pr diff:*)",
       "Bash(gh pr list:*)",
       "Bash(gh pr view:*)",
       "Bash(gh release view:*)",
+      "Bash(gh release list:*)",
       "Bash(gh run list:*)",
       "Bash(gh run view:*)",
       "Bash(gh search:*)",
@@ -91,6 +93,5 @@
         "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser"
       ]
     }
-  },
-  "effortLevel": "medium"
+  }
 }
