@@ -8,6 +8,7 @@
     "allow": [
       "Bash(./mvnw:*)",
       "Bash(wc:*)",
+      "Bash(shellcheck:*)",
       "Bash(gh auth switch:*)",
       "Bash(gh issue view:*)",
       "Bash(gh pr diff:*)",
