@@ -8,6 +8,8 @@
     "allow": [
       "Bash(./mvnw:*)",
       "Bash(wc:*)",
+      "Bash(grep:*)",
+      "Bash(find:*)",
       "Bash(shellcheck:*)",
       "Bash(gh auth switch:*)",
       "Bash(gh issue view:*)",
@@ -24,7 +26,10 @@
       "Bash(git fetch:*)",
       "Bash(git grep:*)",
       "Bash(git log:*)",
-      "Bash(git ls-tree:*)"
+      "Bash(git ls-tree:*)",
+      "Bash(git ls-files:*)",
+      "Bash(git show:*)",
+      "Bash(git status:*)"
     ],
     "deny": []
   },
