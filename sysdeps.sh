@@ -157,7 +157,7 @@ cmd_upgrade() {
     local upgrade_failed=false
     
     echo 'Brew:'
-    if ! (brew update && brew upgrade && brew upgrade --cask); then
+    if ! (brew update && brew upgrade && brew upgrade --cask --greedy); then
         echo "ERROR: Brew upgrade failed"
         upgrade_failed=true
     fi
