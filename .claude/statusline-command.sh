@@ -8,13 +8,13 @@ CYAN=$'\033[36m'; MAGENTA=$'\033[35m'; RESET=$'\033[0m'
 input=$(</dev/stdin)
 
 # Extract all needed values from input JSON in a single jq call
-IFS=$'\t' read -r model cwd cc_version current size <<< "$(echo "$input" | jq -r '[
+IFS=$'\t' read -r model cwd cc_version current size <<< "$(jq -r '[
   .model.display_name,
   .workspace.current_dir,
   (.version // "2.1.72"),
   ((.context_window.current_usage // {}) | ((.input_tokens // 0) + (.cache_creation_input_tokens // 0) + (.cache_read_input_tokens // 0))),
   (.context_window.context_window_size // 0)
-] | @tsv')"
+] | @tsv' <<< "$input")"
 
 # Detect whether we have context usage data
 has_context=false
@@ -72,11 +72,33 @@ format_time_remaining() {
     fi
 }
 
+# Rounds a utilization value to an integer percentage, defaulting to 0
+parse_pct() {
+    local v=$1
+    if [[ -n "$v" && "$v" != "null" ]]; then
+        printf "%.0f" "$v"
+    else
+        echo "0"
+    fi
+}
+
 CACHE_FILE="/tmp/claude-usage-cache.json"
 CACHE_FETCH_TS="/tmp/claude-usage-fetched.ts"  # tracks last successful fetch time
 CACHE_RETRY_TS="/tmp/claude-usage-retry.ts"    # tracks last retry attempt
 CACHE_LOCK="/tmp/claude-usage-fetch.lock"       # prevents concurrent fetches across instances
 CACHE_DURATION=120
+
+# Emits stale cache data if available; returns 2 (stale) or 1 (no data)
+emit_stale_cache() {
+    if [[ -f "$CACHE_FILE" ]]; then
+        local stale_data=$(cat "$CACHE_FILE")
+        if jq -e '.five_hour' <<< "$stale_data" >/dev/null 2>&1; then
+            echo "$stale_data"
+            return 2  # stale
+        fi
+    fi
+    return 1
+}
 
 fetch_usage_data() {
     local now=$(date +%s)
@@ -87,7 +109,7 @@ fetch_usage_data() {
         local cache_age=$((now - fetched_at))
         if [[ $cache_age -lt $CACHE_DURATION ]]; then
             local cached_data=$(cat "$CACHE_FILE")
-            if echo "$cached_data" | jq -e '.five_hour' >/dev/null 2>&1; then
+            if jq -e '.five_hour' <<< "$cached_data" >/dev/null 2>&1; then
                 echo "$cached_data"
                 return 0  # fresh
             fi
@@ -99,14 +121,8 @@ fetch_usage_data() {
         local last_retry=$(cat "$CACHE_RETRY_TS")
         if [[ $((now - last_retry)) -lt $CACHE_DURATION ]]; then
             # Too soon to retry — return stale cache if available
-            if [[ -f "$CACHE_FILE" ]]; then
-                local stale_data=$(cat "$CACHE_FILE")
-                if echo "$stale_data" | jq -e '.five_hour' >/dev/null 2>&1; then
-                    echo "$stale_data"
-                    return 2  # stale
-                fi
-            fi
-            return 1
+            emit_stale_cache
+            return $?
         fi
     fi
 
@@ -174,15 +190,7 @@ fetch_usage_data() {
         echo "$now" > "$CACHE_RETRY_TS"
     fi
 
-    if [[ -f "$CACHE_FILE" ]]; then
-        local stale_data=$(cat "$CACHE_FILE")
-        if echo "$stale_data" | jq -e '.five_hour' >/dev/null 2>&1; then
-            echo "$stale_data"
-            return 2  # stale
-        fi
-    fi
-
-    return 1
+    emit_stale_cache
 }
 
 # Get usage data
@@ -191,13 +199,35 @@ usage_fetch_rc=$?
 usage_info=""
 
 if [[ -n "$usage_data" ]]; then
-    five_hour_util=$(echo "$usage_data" | jq -r '.five_hour.utilization // 0')
-    five_hour_resets=$(echo "$usage_data" | jq -r '.five_hour.resets_at // ""')
+    # Extract all usage fields in a single jq call (use non-whitespace
+    # delimiter so bash read preserves empty fields like missing resets_at)
+    IFS=$'\x1e' read -r five_hour_util five_hour_resets \
+                         seven_day_util seven_day_resets \
+                         extra_enabled extra_util extra_used extra_limit \
+        <<< "$(jq -r '[
+          (.five_hour.utilization // 0),
+          (.five_hour.resets_at // ""),
+          (.seven_day.utilization // 0),
+          (.seven_day.resets_at // ""),
+          (.extra_usage.is_enabled // false),
+          (.extra_usage.utilization // 0),
+          (.extra_usage.used_credits // 0),
+          (.extra_usage.monthly_limit // 0)
+        ] | join("\u001e")' <<< "$usage_data")"
 
-    if [[ -n "$five_hour_util" ]] && [[ "$five_hour_util" != "null" ]]; then
-        five_hour_pct=$(printf "%.0f" "$five_hour_util")
-    else
-        five_hour_pct="0"
+    five_hour_pct=$(parse_pct "$five_hour_util")
+
+    # rc=2 means stale, but only show STALE indicator if data is more than
+    # CACHE_DURATION+60 seconds old — gives the fetching process a 60s grace
+    # period before anything is actually labelled stale (avoids a brief flash
+    # during the normal cache-refresh window).
+    now_main=$(date +%s)
+    fetched_at_check=0
+    [[ -f "$CACHE_FETCH_TS" ]] && fetched_at_check=$(cat "$CACHE_FETCH_TS")
+    data_age=$(( now_main - fetched_at_check ))
+    if [[ "$usage_fetch_rc" -eq 2 && "$data_age" -le $(( CACHE_DURATION + 60 )) ]]; then
+        # Within grace period: treat as fresh so no STALE label is shown
+        usage_fetch_rc=0
     fi
 
     if [[ "$usage_fetch_rc" -eq 2 ]]; then
@@ -205,10 +235,8 @@ if [[ -n "$usage_data" ]]; then
         if [[ "$five_hour_pct" -gt 0 ]] 2>/dev/null; then
             daily_color=$(get_usage_color "$five_hour_pct")
             daily_reset=$(format_time_remaining "$five_hour_resets")
-            local fetched_at=0
-            [[ -f "$CACHE_FETCH_TS" ]] && fetched_at=$(cat "$CACHE_FETCH_TS")
-            if [[ $fetched_at -gt 0 ]]; then
-                stale_minutes=$(( ($(date +%s) - fetched_at) / 60 ))
+            if [[ $fetched_at_check -gt 0 ]]; then
+                stale_minutes=$(( data_age / 60 ))
             else
                 stale_minutes="?"
             fi
@@ -217,14 +245,7 @@ if [[ -n "$usage_data" ]]; then
         fi
     else
         # Fresh data: show full breakdown
-        seven_day_util=$(echo "$usage_data" | jq -r '.seven_day.utilization // 0')
-        seven_day_resets=$(echo "$usage_data" | jq -r '.seven_day.resets_at // ""')
-
-        if [[ -n "$seven_day_util" ]] && [[ "$seven_day_util" != "null" ]]; then
-            seven_day_pct=$(printf "%.0f" "$seven_day_util")
-        else
-            seven_day_pct="0"
-        fi
+        seven_day_pct=$(parse_pct "$seven_day_util")
 
         if [[ "$five_hour_pct" -gt 0 ]] 2>/dev/null || [[ "$seven_day_pct" -gt 0 ]] 2>/dev/null; then
             daily_color=$(get_usage_color "$five_hour_pct")
@@ -238,12 +259,8 @@ if [[ -n "$usage_data" ]]; then
         fi
 
         # Extra usage (only show if enabled)
-        extra_enabled=$(echo "$usage_data" | jq -r '.extra_usage.is_enabled // false')
         if [[ "$extra_enabled" == "true" ]]; then
-            extra_util=$(echo "$usage_data" | jq -r '.extra_usage.utilization // 0')
-            extra_used=$(echo "$usage_data" | jq -r '.extra_usage.used_credits // 0')
-            extra_limit=$(echo "$usage_data" | jq -r '.extra_usage.monthly_limit // 0')
-            extra_pct=$(printf "%.0f" "$extra_util")
+            extra_pct=$(parse_pct "$extra_util")
             extra_color=$(get_usage_color "$extra_pct")
             extra_used_int=$(printf "%.0f" "$extra_used")
             usage_info=$(printf '%s | Extra: %s%s%%%s (%s/%s)' \
