@@ -75,7 +75,8 @@ format_time_remaining() {
 CACHE_FILE="/tmp/claude-usage-cache.json"
 CACHE_FETCH_TS="/tmp/claude-usage-fetched.ts"  # tracks last successful fetch time
 CACHE_RETRY_TS="/tmp/claude-usage-retry.ts"    # tracks last retry attempt
-CACHE_DURATION=60
+CACHE_LOCK="/tmp/claude-usage-fetch.lock"       # prevents concurrent fetches across instances
+CACHE_DURATION=120
 
 fetch_usage_data() {
     local now=$(date +%s)
@@ -109,33 +110,70 @@ fetch_usage_data() {
         fi
     fi
 
-    # Fetch fresh data from keychain
-    local token_json=""
-    local access_token=""
-    token_json=$(security find-generic-password -s "Claude Code-credentials" -w 2>/dev/null)
-    if [[ -n "$token_json" ]]; then
-        access_token=$(echo "$token_json" | jq -r '.claudeAiOauth.accessToken // empty' 2>/dev/null)
-    fi
-
-    if [[ -n "$access_token" ]]; then
-        # User-Agent must match claude-code/* to avoid stricter rate limit bucket
-        # See: https://github.com/anthropics/claude-code/issues/30930#issuecomment-4032624631
-        local response=$(curl -s --max-time 3 \
-            -H "Authorization: Bearer $access_token" \
-            -H "anthropic-beta: oauth-2025-04-20" \
-            -H "User-Agent: claude-code/${cc_version}" \
-            "https://api.anthropic.com/api/oauth/usage")
-
-        if [[ -n "$response" ]] && echo "$response" | jq -e '.five_hour' >/dev/null 2>&1; then
-            echo "$response" > "$CACHE_FILE"
-            echo "$now" > "$CACHE_FETCH_TS"
-            echo "$response"
-            return 0  # fresh
+    # Use a lockfile to prevent multiple concurrent Claude instances from all
+    # hitting the API simultaneously when the cache expires (thundering herd).
+    # noclobber (set -C) makes the redirect atomic: only one process succeeds.
+    local got_lock=false
+    if ( set -C; echo "$$" > "$CACHE_LOCK" ) 2>/dev/null; then
+        got_lock=true
+    elif [[ -f "$CACHE_LOCK" ]]; then
+        # Stale lock recovery: remove if >10s old or holding PID is dead
+        local lock_pid=$(<"$CACHE_LOCK")
+        local lock_age=$(( now - $(stat -f %m "$CACHE_LOCK" 2>/dev/null || echo "$now") ))
+        if [[ $lock_age -gt 10 ]] || ! kill -0 "$lock_pid" 2>/dev/null; then
+            rm -f "$CACHE_LOCK"
+            if ( set -C; echo "$$" > "$CACHE_LOCK" ) 2>/dev/null; then
+                got_lock=true
+            fi
         fi
     fi
+    if [[ "$got_lock" == "true" ]]; then
+        trap 'rm -f "$CACHE_LOCK"' RETURN INT TERM HUP
 
-    # Fetch failed — record retry time and fall back to stale cache
-    echo "$now" > "$CACHE_RETRY_TS"
+        # Fetch fresh data from keychain
+        local token_json=""
+        local access_token=""
+        token_json=$(security find-generic-password -s "Claude Code-credentials" -w 2>/dev/null)
+        if [[ -n "$token_json" ]]; then
+            access_token=$(jq -r '.claudeAiOauth.accessToken // empty' <<< "$token_json" 2>/dev/null)
+        fi
+
+        if [[ -n "$access_token" ]]; then
+            # User-Agent must match claude-code/* to avoid stricter rate limit bucket
+            # See: https://github.com/anthropics/claude-code/issues/30930#issuecomment-4032624631
+            local resp_body="/tmp/claude-usage-resp-$$.json"
+            local resp_headers="/tmp/claude-usage-resp-headers-$$.txt"
+            local http_code=$(curl -s --max-time 3 -o "$resp_body" -D "$resp_headers" \
+                -w '%{http_code}' \
+                -H "Authorization: Bearer $access_token" \
+                -H "anthropic-beta: oauth-2025-04-20" \
+                -H "User-Agent: claude-code/${cc_version}" \
+                "https://api.anthropic.com/api/oauth/usage")
+            local response=$(<"$resp_body" 2>/dev/null)
+            local rate_headers=$(grep -iE 'rate|limit|retry|reset' "$resp_headers" 2>/dev/null | tr '\r\n' ' ')
+            rm -f "$resp_body" "$resp_headers"
+
+            # Log API call (keep log bounded to ~1000 lines)
+            local log_file="/tmp/claude-api-calls.log"
+            echo "$(date -u '+%Y-%m-%dT%H:%M:%SZ') pid=$$ http=$http_code headers=[$rate_headers] response=$response" >> "$log_file"
+            if [[ $(wc -l < "$log_file" 2>/dev/null) -gt 1000 ]]; then
+                tail -500 "$log_file" > "$log_file.tmp" && mv "$log_file.tmp" "$log_file"
+            fi
+
+            if [[ -n "$response" ]] && jq -e '.five_hour' <<< "$response" >/dev/null 2>&1; then
+                echo "$response" > "$CACHE_FILE"
+                echo "$now" > "$CACHE_FETCH_TS"
+                # Clear any previous retry timestamp on success
+                rm -f "$CACHE_RETRY_TS"
+                echo "$response"
+                return 0  # fresh
+            fi
+        fi
+
+        # Fetch failed — record retry time and fall back to stale cache
+        echo "$now" > "$CACHE_RETRY_TS"
+    fi
+
     if [[ -f "$CACHE_FILE" ]]; then
         local stale_data=$(<"$CACHE_FILE")
         if echo "$stale_data" | jq -e '.five_hour' >/dev/null 2>&1; then
