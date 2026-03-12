@@ -4,7 +4,7 @@
 GREEN=$'\033[32m'; YELLOW=$'\033[33m'; RED=$'\033[31m'
 CYAN=$'\033[36m'; MAGENTA=$'\033[35m'; RESET=$'\033[0m'
 
-# Read JSON input from stdin (bash builtin, no fork)
+# Read JSON input from stdin
 input=$(</dev/stdin)
 
 # Extract all needed values from input JSON in a single jq call
@@ -83,10 +83,10 @@ fetch_usage_data() {
 
     # Check if we have cached data and a recent successful fetch
     if [[ -f "$CACHE_FILE" && -f "$CACHE_FETCH_TS" ]]; then
-        local fetched_at=$(<"$CACHE_FETCH_TS")
+        local fetched_at=$(cat "$CACHE_FETCH_TS")
         local cache_age=$((now - fetched_at))
         if [[ $cache_age -lt $CACHE_DURATION ]]; then
-            local cached_data=$(<"$CACHE_FILE")
+            local cached_data=$(cat "$CACHE_FILE")
             if echo "$cached_data" | jq -e '.five_hour' >/dev/null 2>&1; then
                 echo "$cached_data"
                 return 0  # fresh
@@ -96,11 +96,11 @@ fetch_usage_data() {
 
     # Don't retry if we failed recently (wait CACHE_DURATION between attempts)
     if [[ -f "$CACHE_RETRY_TS" ]]; then
-        local last_retry=$(<"$CACHE_RETRY_TS")
+        local last_retry=$(cat "$CACHE_RETRY_TS")
         if [[ $((now - last_retry)) -lt $CACHE_DURATION ]]; then
             # Too soon to retry — return stale cache if available
             if [[ -f "$CACHE_FILE" ]]; then
-                local stale_data=$(<"$CACHE_FILE")
+                local stale_data=$(cat "$CACHE_FILE")
                 if echo "$stale_data" | jq -e '.five_hour' >/dev/null 2>&1; then
                     echo "$stale_data"
                     return 2  # stale
@@ -118,7 +118,7 @@ fetch_usage_data() {
         got_lock=true
     elif [[ -f "$CACHE_LOCK" ]]; then
         # Stale lock recovery: remove if >10s old or holding PID is dead
-        local lock_pid=$(<"$CACHE_LOCK")
+        local lock_pid=$(cat "$CACHE_LOCK")
         local lock_age=$(( now - $(stat -f %m "$CACHE_LOCK" 2>/dev/null || echo "$now") ))
         if [[ $lock_age -gt 10 ]] || ! kill -0 "$lock_pid" 2>/dev/null; then
             rm -f "$CACHE_LOCK"
@@ -149,7 +149,7 @@ fetch_usage_data() {
                 -H "anthropic-beta: oauth-2025-04-20" \
                 -H "User-Agent: claude-code/${cc_version}" \
                 "https://api.anthropic.com/api/oauth/usage")
-            local response=$(<"$resp_body" 2>/dev/null)
+            local response=$(cat "$resp_body" 2>/dev/null)
             local rate_headers=$(grep -iE 'rate|limit|retry|reset' "$resp_headers" 2>/dev/null | tr '\r\n' ' ')
             rm -f "$resp_body" "$resp_headers"
 
@@ -175,7 +175,7 @@ fetch_usage_data() {
     fi
 
     if [[ -f "$CACHE_FILE" ]]; then
-        local stale_data=$(<"$CACHE_FILE")
+        local stale_data=$(cat "$CACHE_FILE")
         if echo "$stale_data" | jq -e '.five_hour' >/dev/null 2>&1; then
             echo "$stale_data"
             return 2  # stale
@@ -206,7 +206,7 @@ if [[ -n "$usage_data" ]]; then
             daily_color=$(get_usage_color "$five_hour_pct")
             daily_reset=$(format_time_remaining "$five_hour_resets")
             local fetched_at=0
-            [[ -f "$CACHE_FETCH_TS" ]] && fetched_at=$(<"$CACHE_FETCH_TS")
+            [[ -f "$CACHE_FETCH_TS" ]] && fetched_at=$(cat "$CACHE_FETCH_TS")
             if [[ $fetched_at -gt 0 ]]; then
                 stale_minutes=$(( ($(date +%s) - fetched_at) / 60 ))
             else
