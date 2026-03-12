@@ -192,6 +192,38 @@ cmd_upgrade() {
         echo "SDK command not found - skipping SDK updates"
     fi
 
+    # Upgrade Java to latest patch within same major version and vendor
+    if command -v sdk >/dev/null 2>&1; then
+        current_java=$(sdk current java 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+[-\.][a-z]+')
+        if [[ -n "$current_java" ]]; then
+            major=$(echo "$current_java" | cut -d. -f1)
+            vendor=$(echo "$current_java" | sed 's/.*[.-]//')
+            echo "Current Java: $current_java (major=$major, vendor=$vendor)"
+
+            # Find latest available version matching major + vendor from sdk list java
+            # Strip ANSI codes, extract identifiers, filter by major.x.y-vendor, version-sort
+            latest_java=$(sdk list java 2>/dev/null \
+                | sed 's/\x1b\[[0-9;]*m//g' \
+                | grep -oE "${major}\.[0-9]+\.[0-9]+(\.[0-9]+)?-${vendor}" \
+                | sort -V \
+                | tail -1)
+
+            if [[ -n "$latest_java" && "$latest_java" != "$current_java" ]]; then
+                echo "Upgrading Java to $latest_java..."
+                if ! sdk install java "$latest_java"; then
+                    echo "ERROR: Java upgrade failed"
+                    upgrade_failed=true
+                else
+                    sdk default java "$latest_java"
+                fi
+            else
+                echo "Java is up to date"
+            fi
+        else
+            echo "No Java version detected - skipping Java upgrade"
+        fi
+    fi
+
     echo
     echo 'nvm:'
     # nvm is a shell function, source it if not available
