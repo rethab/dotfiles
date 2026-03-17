@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/zsh -l
 
 # System Dependencies Manager
 # Lists installed packages from brew/npm/mas with reasons from ~/.sysdeps-reasons
@@ -9,7 +9,7 @@ TIMESTAMP_FILE="$HOME/.sysdeps-last-upgrade"
 
 set -e
 
-trap 'echo "Exit status $? at line $LINENO from: $BASH_COMMAND"' ERR
+trap 'echo "Exit status $? at line $LINENO"' ERR
 
 ensure_reasons_file() {
     if [[ ! -f "$REASONS_FILE" ]]; then
@@ -134,9 +134,9 @@ cmd_list() {
 
     echo 
     echo 'NPM:'
-    npm ls --global --parseable --depth=0 2>/dev/null | while IFS= read -r path; do
-        if [[ -n "$path" ]]; then
-            package=$(basename "$path")
+    npm ls --global --parseable --depth=0 2>/dev/null | while IFS= read -r pkg_path; do
+        if [[ -n "$pkg_path" ]]; then
+            package="${pkg_path:t}"
             # Skip npm itself and empty lines
             if [[ "$package" != "npm" && "$package" != "lib" ]]; then
                 show_package_with_reason "npm" "$package"
