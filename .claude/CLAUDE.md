@@ -12,7 +12,7 @@ I'm an Italian (last name Fusectore) who enjoys his espresso ice cold and doesn'
 
 ## GitHub / gh cli
 
-When creating a PR, don't add "Test Plan".
+**IMPORTANT**: When creating a PR, don't add "Test Plan" or "Summary" sections. Just write what was changed and why. Focus on the why. Don't include every single change, stay high level.
 
 When fetching a PR or an issue from GitHub, use the CLI `gh`.
 
