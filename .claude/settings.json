@@ -28,6 +28,7 @@
       "Bash(git log:*)",
       "Bash(git ls-tree:*)",
       "Bash(git ls-files:*)",
+      "Bash(git remote get-url:*)",
       "Bash(git show:*)",
       "Bash(git status:*)"
     ],
