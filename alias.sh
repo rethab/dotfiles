@@ -69,6 +69,7 @@ c() {
   done < <(_claude_discover_plugins)
   local settings_args=()
   [ -n "$settings_file" ] && settings_args=(--settings "$settings_file")
+  export CLAUDE_CODE_NO_FLICKER=1
   if [ -n "$add_dir" ]; then
     CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1 claude --add-dir "$add_dir" "${plugin_args[@]}" "${settings_args[@]}" "$@"
   else
