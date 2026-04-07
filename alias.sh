@@ -56,6 +56,13 @@ _claude_discover_plugins() {
   done
 }
 
+_claude_find_parent_mcp_config() {
+  local parent="$(dirname "$PWD")"
+  if [ "$parent" != "$HOME" ] && [ "$parent" != "/" ] && [ -f "$parent/.mcp.json" ]; then
+    echo "$parent/.mcp.json"
+  fi
+}
+
 c() {
   # If first arg doesn't start with -, join all args as a single prompt
   if [ $# -gt 0 ] && [ "${1#-}" = "$1" ]; then
@@ -63,17 +70,20 @@ c() {
   fi
   local add_dir="$(_claude_find_parent_claude_md)"
   local settings_file="$(_claude_find_parent_settings)"
+  local mcp_config="$(_claude_find_parent_mcp_config)"
   local plugin_args=()
   while IFS= read -r p; do
     [ -n "$p" ] && plugin_args+=(--plugin-dir "$p")
   done < <(_claude_discover_plugins)
   local settings_args=()
   [ -n "$settings_file" ] && settings_args=(--settings "$settings_file")
+  local mcp_args=()
+  [ -n "$mcp_config" ] && mcp_args=(--mcp-config "$mcp_config")
   export CLAUDE_CODE_NO_FLICKER=1
   if [ -n "$add_dir" ]; then
-    CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1 claude --add-dir "$add_dir" "${plugin_args[@]}" "${settings_args[@]}" "$@"
+    CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1 claude --add-dir "$add_dir" "${plugin_args[@]}" "${settings_args[@]}" "${mcp_args[@]}" "$@"
   else
-    claude "${plugin_args[@]}" "${settings_args[@]}" "$@"
+    claude "${plugin_args[@]}" "${settings_args[@]}" "${mcp_args[@]}" "$@"
   fi
 }
 
