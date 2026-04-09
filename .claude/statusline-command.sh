@@ -8,11 +8,12 @@ CYAN=$'\033[36m'; MAGENTA=$'\033[35m'; RESET=$'\033[0m'
 input=$(</dev/stdin)
 
 # Extract all needed values from input JSON in a single jq call
-IFS=$'\t' read -r model cwd current size <<< "$(jq -r '[
+IFS=$'\t' read -r model cwd current size git_worktree <<< "$(jq -r '[
   .model.display_name,
   .workspace.current_dir,
   ((.context_window.current_usage // {}) | ((.input_tokens // 0) + (.cache_creation_input_tokens // 0) + (.cache_read_input_tokens // 0))),
-  (.context_window.context_window_size // 0)
+  (.context_window.context_window_size // 0),
+  (.workspace.git_worktree // "")
 ] | @tsv' <<< "$input")"
 
 # Detect whether we have context usage data
@@ -102,6 +103,9 @@ fi
 status=$(printf '%s%s%s in %s%s%s' "$CYAN" "$model" "$RESET" "$GREEN" "$(basename "$cwd")" "$RESET")
 if [[ -n "$git_branch" ]]; then
     status=$(printf '%s on %s%s%s' "$status" "$MAGENTA" "$git_branch" "$RESET")
+fi
+if [[ -n "$git_worktree" ]]; then
+    status=$(printf '%s %s[worktree:%s]%s' "$status" "$YELLOW" "$git_worktree" "$RESET")
 fi
 if [[ "$has_context" == "true" ]]; then
     context_color=$(get_usage_color "$context_percentage")
