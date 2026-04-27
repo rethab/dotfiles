@@ -3,6 +3,7 @@
 # ANSI color constants
 GREEN=$'\033[32m'; YELLOW=$'\033[33m'; RED=$'\033[31m'
 CYAN=$'\033[36m'; MAGENTA=$'\033[35m'; RESET=$'\033[0m'
+CAVEMAN_ORANGE=$'\033[38;5;172m'
 
 # Read JSON input from stdin
 input=$(</dev/stdin)
@@ -42,6 +43,16 @@ get_usage_color() {
     fi
 }
 
+# Takes a Unix epoch timestamp and returns the wall-clock reset time (e.g. "4pm")
+format_reset_time() {
+    local reset_time=$1
+    if [[ -z "$reset_time" || "$reset_time" == "0" ]]; then
+        echo "?"
+        return
+    fi
+    date -r "$reset_time" +%-I%p | tr '[:upper:]' '[:lower:]'
+}
+
 # Takes a Unix epoch timestamp and returns human-readable time remaining
 format_time_remaining() {
     local reset_time=$1
@@ -57,7 +68,9 @@ format_time_remaining() {
     elif [[ $diff -lt 3600 ]]; then
         echo "$((diff / 60))m"
     elif [[ $diff -lt 86400 ]]; then
-        echo "$((diff / 3600))h"
+        local hours=$((diff / 3600))
+        local mins=$(( (diff % 3600) / 60 ))
+        echo "${hours}h${mins}m"
     else
         echo "$((diff / 86400))d"
     fi
@@ -99,6 +112,27 @@ if [[ "$five_hour_pct" -gt 0 ]] 2>/dev/null || [[ "$seven_day_pct" -gt 0 ]] 2>/d
         "$weekly_color" "$seven_day_pct" "$RESET" "$weekly_reset")
 fi
 
+# Detect caveman mode from flag file (juliusbrussee/caveman plugin)
+# Plugin deletes flag when off; we render OFF explicitly so state is always visible.
+caveman_badge=""
+caveman_flag="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/.caveman-active"
+if [[ -L "$caveman_flag" ]]; then
+    caveman_badge=""
+elif [[ -f "$caveman_flag" ]]; then
+    caveman_mode=$(head -c 64 "$caveman_flag" 2>/dev/null | tr -d '\n\r' | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9-')
+    case "$caveman_mode" in
+        off|lite|full|ultra|wenyan-lite|wenyan|wenyan-full|wenyan-ultra|commit|review|compress)
+            if [[ -z "$caveman_mode" || "$caveman_mode" == "full" ]]; then
+                caveman_badge=$(printf '%s[CAVEMAN]%s' "$CAVEMAN_ORANGE" "$RESET")
+            else
+                caveman_badge=$(printf '%s[CAVEMAN:%s]%s' "$CAVEMAN_ORANGE" "$(printf '%s' "$caveman_mode" | tr '[:lower:]' '[:upper:]')" "$RESET")
+            fi
+            ;;
+    esac
+else
+    caveman_badge=$(printf '%s[CAVEMAN:OFF]%s' "$CAVEMAN_ORANGE" "$RESET")
+fi
+
 # Build the status line (common prefix, conditional context suffix)
 status=$(printf '%s%s%s in %s%s%s' "$CYAN" "$model" "$RESET" "$GREEN" "$(basename "$cwd")" "$RESET")
 if [[ -n "$git_branch" ]]; then
@@ -113,6 +147,9 @@ if [[ "$has_context" == "true" ]]; then
 fi
 if [[ -n "$usage_info" ]]; then
     status="${status}${usage_info}"
+fi
+if [[ -n "$caveman_badge" ]]; then
+    status="${status} ${caveman_badge}"
 fi
 
 echo "$status"
