@@ -64,10 +64,17 @@ _claude_find_parent_mcp_config() {
 }
 
 c() {
-  # If first arg doesn't start with -, join all args as a single prompt
-  if [ $# -gt 0 ] && [ "${1#-}" = "$1" ]; then
-    set -- -- "$*"
-  fi
+  # Recognized claude subcommands: pass through untouched (with flags)
+  case "$1" in
+    agents|config|mcp|migrate-installer|doctor|update|install|setup-token)
+      ;;
+    *)
+      # If first arg doesn't start with -, join all args as a single prompt
+      if [ $# -gt 0 ] && [ "${1#-}" = "$1" ]; then
+        set -- -- "$*"
+      fi
+      ;;
+  esac
   local add_dir="$(_claude_find_parent_claude_md)"
   local settings_file="$(_claude_find_parent_settings)"
   local mcp_config="$(_claude_find_parent_mcp_config)"
