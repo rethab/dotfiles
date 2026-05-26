@@ -124,7 +124,7 @@ alias sysupgrade='~/dev/private/dotfiles/sysdeps.sh upgrade'
 
 alias gu='goto main && git pull'
 alias gub='gu && goto -'
-alias gdpr='git push && gh pr create --fill'
+alias gdpr='git push --no-verify && gh pr create --fill'
 alias ghw='gh pr view --web'
 
 gc() {
