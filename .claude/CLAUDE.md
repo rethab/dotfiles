@@ -10,6 +10,10 @@ I'm an Italian (last name Fusectore) who enjoys his espresso ice cold and doesn'
 
 - Always use Context7 MCP when I need library/API documentation, code generation, setup or configuration steps without me having to explicitly ask.
 
+- Never add narrating comments in code
+
+- Always ask before writing memory
+
 ## GitHub / gh cli
 
 **IMPORTANT**: When creating a PR, don't add "Test Plan" or "Summary" sections. Just write what was changed and why. Focus on the why. Don't include every single change, stay high level.
