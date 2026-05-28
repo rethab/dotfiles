@@ -124,7 +124,18 @@ alias sysupgrade='~/dev/private/dotfiles/sysdeps.sh upgrade'
 
 alias gu='goto main && git pull'
 alias gub='gu && goto -'
-alias gdpr='git push --no-verify && gh pr create --fill'
+gdpr() {
+  local branch
+  branch=$(git symbolic-ref --short HEAD 2>/dev/null) || {
+    echo "gdpr: not on a branch" >&2
+    return 1
+  }
+  if [ "$branch" = "main" ] || [ "$branch" = "master" ]; then
+    echo "gdpr: refusing to run on '$branch' — create a feature branch first" >&2
+    return 1
+  fi
+  git push --no-verify && gh pr create --fill "$@"
+}
 alias ghw='gh pr view --web'
 
 gc() {
