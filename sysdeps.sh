@@ -156,8 +156,10 @@ cmd_list() {
     echo 'Claude Code Plugins:'
     if command -v claude >/dev/null 2>&1; then
         if command -v jq >/dev/null 2>&1; then
-            claude plugin list --json 2>/dev/null \
-                | jq -r '.[] | "  \(.id) (\(.version)) [\(.scope)] \(if .enabled then "enabled" else "disabled" end)"'
+            while IFS= read -r plugin_id; do
+                [[ -z "$plugin_id" ]] && continue
+                show_package_with_reason "claude-plugin" "$plugin_id"
+            done < <(claude plugin list --json 2>/dev/null | jq -r '.[].id')
         else
             echo "  jq not installed - skipping plugin list"
         fi
@@ -237,40 +239,38 @@ cmd_upgrade() {
         fi
     fi
 
-    # nvm upgrade disabled: node v22.22.2 has a regression that breaks npm
-    # See https://github.com/nodejs/node/issues/62425
-    # TODO: re-enable once a fixed v22.x is released
-    #echo
-    #echo 'nvm:'
-    ## nvm is a shell function, source it if not available
-    #if ! command -v nvm >/dev/null 2>&1 && [[ -s "$HOME/.nvm/nvm.sh" ]]; then
-    #    source "$HOME/.nvm/nvm.sh"
-    #fi
-    #if command -v nvm >/dev/null 2>&1; then
-    #    current_node=$(node --version 2>/dev/null)
-    #    if [[ -n "$current_node" ]]; then
-    #        major=$(echo "$current_node" | sed 's/^v//' | cut -d. -f1)
-    #        echo "Current: $current_node, upgrading to latest v$major.x..."
-    #        if ! nvm install "$major"; then
-    #            echo "ERROR: nvm upgrade failed"
-    #            upgrade_failed=true
-    #        fi
-    #    else
-    #        echo "No Node.js version detected - skipping nvm upgrade"
-    #    fi
-    #else
-    #    echo "nvm not found - skipping nvm upgrade"
-    #fi
+    echo
+    echo 'nvm:'
+    # nvm is a shell function, source it if not available
+    if ! command -v nvm >/dev/null 2>&1 && [[ -s "$HOME/.nvm/nvm.sh" ]]; then
+        source "$HOME/.nvm/nvm.sh"
+    fi
+    if command -v nvm >/dev/null 2>&1; then
+        current_node=$(node --version 2>/dev/null)
+        if [[ -n "$current_node" ]]; then
+            major=$(echo "$current_node" | sed 's/^v//' | cut -d. -f1)
+            echo "Current: $current_node, upgrading to latest v$major.x..."
+            if ! nvm install "$major"; then
+                echo "ERROR: nvm upgrade failed"
+                upgrade_failed=true
+            fi
+        else
+            echo "No Node.js version detected - skipping nvm upgrade"
+        fi
+    else
+        echo "nvm not found - skipping nvm upgrade"
+    fi
 
-    # npm upgrade disabled: npm is broken on node v22.22.2
-    # See https://github.com/nodejs/node/issues/62425
-    # TODO: re-enable once a fixed v22.x is released
-    #echo
-    #echo 'NPM:'
-    #if ! npm update -g; then
-    #    echo "ERROR: NPM upgrade failed"
-    #    upgrade_failed=true
-    #fi
+    echo
+    echo 'NPM:'
+    if command -v npm >/dev/null 2>&1; then
+        if ! npm update -g; then
+            echo "ERROR: NPM upgrade failed"
+            upgrade_failed=true
+        fi
+    else
+        echo "npm not installed - skipping NPM updates"
+    fi
 
     echo
     echo 'Claude Code:'
@@ -330,6 +330,8 @@ case "$1" in
         ;;
     upgrade)
         cmd_upgrade
+        echo
+        cmd_list
         ;;
     check)
         check_upgrade_freshness
