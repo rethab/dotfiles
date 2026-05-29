@@ -144,10 +144,23 @@ cmd_list() {
         fi
     done
 
-    echo 
+    echo
     echo 'Custom:'
     if command -v claude >/dev/null 2>&1; then
         show_package_with_reason "custom" "claude-code"
+    else
+        echo "  Claude Code not installed"
+    fi
+
+    echo
+    echo 'Claude Code Plugins:'
+    if command -v claude >/dev/null 2>&1; then
+        if command -v jq >/dev/null 2>&1; then
+            claude plugin list --json 2>/dev/null \
+                | jq -r '.[] | "  \(.id) (\(.version)) [\(.scope)] \(if .enabled then "enabled" else "disabled" end)"'
+        else
+            echo "  jq not installed - skipping plugin list"
+        fi
     else
         echo "  Claude Code not installed"
     fi
@@ -269,7 +282,34 @@ cmd_upgrade() {
     else
         echo "Claude Code not installed - skipping Claude Code updates"
     fi
-    
+
+    echo
+    echo 'Claude Code Plugins:'
+    if command -v claude >/dev/null 2>&1; then
+        if command -v jq >/dev/null 2>&1; then
+            plugin_json=$(claude plugin list --json 2>/dev/null)
+            if [[ -z "$plugin_json" ]] || ! echo "$plugin_json" | jq -e . >/dev/null 2>&1; then
+                echo "ERROR: Could not read plugin list"
+                upgrade_failed=true
+            else
+                plugin_count=$(echo "$plugin_json" | jq '[.[] | select(.enabled)] | length')
+                echo "  Updating $plugin_count enabled plugin(s)..."
+                while IFS=$'\t' read -r plugin_id plugin_scope; do
+                    [[ -z "$plugin_id" ]] && continue
+                    echo "  Updating $plugin_id ($plugin_scope)..."
+                    if ! claude plugin update "$plugin_id" --scope "$plugin_scope"; then
+                        echo "ERROR: Plugin update failed for $plugin_id"
+                        upgrade_failed=true
+                    fi
+                done < <(echo "$plugin_json" | jq -r '.[] | select(.enabled) | "\(.id)\t\(.scope)"')
+            fi
+        else
+            echo "jq not installed - skipping plugin updates"
+        fi
+    else
+        echo "Claude Code not installed - skipping plugin updates"
+    fi
+
     # Only update timestamp if all upgrades succeeded
     if [[ "$upgrade_failed" == "false" ]]; then
         date +%s > "$TIMESTAMP_FILE"
