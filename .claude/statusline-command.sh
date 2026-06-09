@@ -111,11 +111,18 @@ if [[ "$five_hour_pct" -gt 0 ]] 2>/dev/null || [[ "$seven_day_pct" -gt 0 ]] 2>/d
         "$weekly_color" "$seven_day_pct" "$RESET" "$weekly_reset")
 fi
 
-# Detect caveman mode from flag file (juliusbrussee/caveman plugin)
-# Plugin deletes flag when off; we render OFF explicitly so state is always visible.
+# Detect caveman mode from flag file (juliusbrussee/caveman plugin).
+# The plugin only deletes the flag when toggled off in-band ("stop caveman");
+# if it's disabled in settings its hooks never run, leaving a stale flag. So
+# settings is the source of truth: when the plugin is disabled we ignore the
+# flag entirely and show no badge.
 caveman_badge=""
-caveman_flag="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/.caveman-active"
-if [[ -L "$caveman_flag" ]]; then
+config_dir="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+caveman_flag="$config_dir/.caveman-active"
+caveman_enabled=$(jq -r '.enabledPlugins."caveman@caveman" // false' "$config_dir/settings.json" 2>/dev/null)
+if [[ "$caveman_enabled" != "true" ]]; then
+    caveman_badge=""
+elif [[ -L "$caveman_flag" ]]; then
     caveman_badge=""
 elif [[ -f "$caveman_flag" ]]; then
     caveman_mode=$(head -c 64 "$caveman_flag" 2>/dev/null | tr -d '\n\r' | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9-')
