@@ -30,12 +30,18 @@ if git -C "$cwd" rev-parse --git-dir > /dev/null 2>&1; then
     git_branch=$(git -C "$cwd" --no-optional-locks rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
 fi
 
-# Returns green/yellow/red ANSI code based on percentage (integer)
+# Returns green/yellow/red ANSI code based on percentage (integer).
+# Optional second arg: context window size — tighter thresholds for large contexts (>=500k).
 get_usage_color() {
-    local util=${1%.*}  # truncate any decimal
-    if [[ $util -lt 50 ]]; then
+    local util=${1%.*}
+    local ctx_size=${2:-0}
+    local low=50 high=75
+    if [[ "$ctx_size" -ge 500000 ]] 2>/dev/null; then
+        low=30; high=40
+    fi
+    if [[ $util -lt $low ]]; then
         echo "$GREEN"
-    elif [[ $util -lt 75 ]]; then
+    elif [[ $util -lt $high ]]; then
         echo "$YELLOW"
     else
         echo "$RED"
@@ -145,7 +151,7 @@ if [[ -n "$git_branch" ]]; then
     status=$(printf '%s on %s%s%s' "$status" "$MAGENTA" "$git_branch" "$RESET")
 fi
 if [[ "$has_context" == "true" ]]; then
-    context_color=$(get_usage_color "$context_percentage")
+    context_color=$(get_usage_color "$context_percentage" "$size")
     status=$(printf '%s | Ctx: %s%d%%%s' "$status" "$context_color" "$context_percentage" "$RESET")
 fi
 if [[ -n "$usage_info" ]]; then
