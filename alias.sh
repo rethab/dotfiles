@@ -146,3 +146,10 @@ gc() {
 traceparent() {
   printf '00-%s-%s-01\n' "$(openssl rand -hex 16)" "$(openssl rand -hex 8)"
 }
+
+curlt() {
+  local tp
+  tp="$(traceparent)"
+  printf 'traceid: %s\n' "$(printf '%s' "$tp" | cut -d- -f2)" >&2
+  curl -H "traceparent: $tp" "$@"
+}
