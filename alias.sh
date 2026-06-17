@@ -142,3 +142,7 @@ gc() {
   git add . || return 1
   git commit -m "$*" || return 1
 }
+
+traceparent() {
+  printf '00-%s-%s-01\n' "$(openssl rand -hex 16)" "$(openssl rand -hex 8)"
+}
