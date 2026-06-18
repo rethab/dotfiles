@@ -161,8 +161,8 @@ cmd_list() {
     npm ls --global --parseable --depth=0 2>/dev/null | while IFS= read -r pkg_path; do
         if [[ -n "$pkg_path" ]]; then
             package="${pkg_path:t}"
-            # Skip npm itself and empty lines
-            if [[ "$package" != "npm" && "$package" != "lib" ]]; then
+            # Skip Node-bundled packages (npm, corepack) and the prefix dir
+            if [[ "$package" != "npm" && "$package" != "lib" && "$package" != "corepack" ]]; then
                 show_package_with_reason "npm" "$package"
             fi
         fi
