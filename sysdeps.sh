@@ -9,14 +9,11 @@ TIMESTAMP_FILE="$HOME/.sysdeps-last-upgrade"
 
 set -e
 
-trap 'echo "Exit status $? at line $LINENO"' ERR
-
 ensure_reasons_file() {
     if [[ ! -f "$REASONS_FILE" ]]; then
         echo "Reasons file not found at $REASONS_FILE"
-        read -p "Would you like to create it? (y/N): " -n 1 -r
-        echo
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
+        if read -q "?Would you like to create it? (y/N): "; then
+            echo
             cat > "$REASONS_FILE" << 'EOF'
 # System dependencies reasons file
 # Format: tool:package_name:reason
@@ -29,6 +26,7 @@ ensure_reasons_file() {
 EOF
             echo "Created $REASONS_FILE"
         else
+            echo
             echo "Continuing without reasons file..."
         fi
     fi
@@ -37,11 +35,9 @@ EOF
 get_reason() {
     local tool="$1"
     local package="$2"
-    
-    if [[ ! -f "$REASONS_FILE" ]]; then
-        return 1
-    fi
-    
+
+    [[ -f "$REASONS_FILE" ]] || return 0
+
     grep "^$tool:$package:" "$REASONS_FILE" 2>/dev/null | cut -d: -f3-
 }
 
@@ -53,12 +49,12 @@ check_upgrade_freshness() {
         echo -e "\033[31m└─────────────────────────────────────────────────────────────┘\033[0m"
         return 1
     fi
-    
+
     local last_upgrade=$(cat "$TIMESTAMP_FILE" 2>/dev/null)
     local current_time=$(date +%s)
     local week_in_seconds=$((7 * 24 * 60 * 60))
     local time_diff=$((current_time - last_upgrade))
-    
+
     if [[ $time_diff -gt $week_in_seconds ]]; then
         local days_old=$((time_diff / (24 * 60 * 60)))
         local last_upgrade_date=$(date -r "$last_upgrade" "+%Y-%m-%d %H:%M:%S" 2>/dev/null || echo "unknown")
@@ -69,7 +65,7 @@ check_upgrade_freshness() {
         echo -e "\033[33m└─────────────────────────────────────────────────────────────┘\033[0m"
         return 1
     fi
-    
+
     return 0
 }
 
@@ -93,7 +89,7 @@ show_package_with_reason() {
     local tool="$1"
     local package="$2"
     local reason
-    
+
     reason=$(get_reason "$tool" "$package")
     if [[ -n "$reason" ]]; then
         printf "  %-30s - %s\n" "$package" "$reason"
@@ -120,13 +116,13 @@ EOF
 
 cmd_list() {
     ensure_reasons_file
-    
+
     echo 'Brew Regular:'
     while IFS= read -r package; do
         show_package_with_reason "brew" "$package"
     done < <(brew ls --installed-on-request)
 
-    echo 
+    echo
     echo 'Brew Casks:'
     while IFS= read -r package; do
         show_package_with_reason "brew-cask" "$package"
@@ -160,7 +156,7 @@ cmd_list() {
         echo "  mas not installed - skipping Mac App Store apps"
     fi
 
-    echo 
+    echo
     echo 'NPM:'
     npm ls --global --parseable --depth=0 2>/dev/null | while IFS= read -r pkg_path; do
         if [[ -n "$pkg_path" ]]; then
@@ -198,7 +194,7 @@ cmd_list() {
 
 cmd_upgrade() {
     local upgrade_failed=false
-    
+
     echo 'Brew:'
     if ! check_brew_trust; then
         upgrade_failed=true
