@@ -73,6 +73,22 @@ check_upgrade_freshness() {
     return 0
 }
 
+check_brew_trust() {
+    local untrusted
+    untrusted=$(brew tap-info --json --installed 2>/dev/null \
+        | jq -r '.[] | select(.official == false and .trusted == false) | .name')
+
+    if [[ -n "$untrusted" ]]; then
+        echo -e "\033[31mERROR: Untrusted taps detected:\033[0m"
+        echo "$untrusted" | sed 's/^/  /'
+        echo "Trust them with:  brew trust --tap <user>/<tap>"
+        echo "Or remove with:   brew untap <user>/<tap>"
+        return 1
+    fi
+
+    return 0
+}
+
 show_package_with_reason() {
     local tool="$1"
     local package="$2"
@@ -116,7 +132,19 @@ cmd_list() {
         show_package_with_reason "brew-cask" "$package"
     done < <(brew ls --casks -1)
 
-    echo 
+    echo
+    echo 'Brew Trusted:'
+    trusted=$(brew trust --json v1 2>/dev/null \
+        | jq -r '[.taps[], .formulae[], .casks[], .commands[]] | .[]')
+    if [[ -n "$trusted" ]]; then
+        while IFS= read -r entry; do
+            show_package_with_reason "brew-trust" "$entry"
+        done <<< "$trusted"
+    else
+        echo "  None trusted"
+    fi
+
+    echo
     echo 'Mac App Store:'
     if command -v mas >/dev/null 2>&1; then
         mas list 2>/dev/null | while IFS= read -r line; do
@@ -172,7 +200,9 @@ cmd_upgrade() {
     local upgrade_failed=false
     
     echo 'Brew:'
-    if ! (brew update && brew upgrade && brew upgrade --cask --greedy); then
+    if ! check_brew_trust; then
+        upgrade_failed=true
+    elif ! (brew update && brew upgrade --no-ask && brew upgrade --cask --greedy --no-ask); then
         echo "ERROR: Brew upgrade failed"
         upgrade_failed=true
     fi
