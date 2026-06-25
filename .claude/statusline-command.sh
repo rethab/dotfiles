@@ -77,7 +77,8 @@ format_time_remaining() {
         local mins=$(( (diff % 3600) / 60 ))
         echo "${hours}h${mins}m"
     else
-        echo "$((diff / 86400))d"
+        local days=$(echo "scale=0; ($diff + 43200) / 86400" | bc)
+        echo "${days}d"
     fi
 }
 
