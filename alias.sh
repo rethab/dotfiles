@@ -80,11 +80,20 @@ c() {
   [ -n "$settings_file" ] && settings_args=(--settings "$settings_file")
   local mcp_args=()
   [ -n "$mcp_config" ] && mcp_args=(--mcp-config "$mcp_config")
+  local model_args=()
+  local has_model=0
+  local arg
+  for arg in "$@"; do
+    case "$arg" in
+      --model|--model=*) has_model=1; break ;;
+    esac
+  done
+  [ "$has_model" -eq 0 ] && model_args=(--model default)
   export CLAUDE_CODE_NO_FLICKER=1
   if [ -n "$add_dir" ]; then
-    CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1 claude --add-dir "$add_dir" "${plugin_args[@]}" "${settings_args[@]}" "${mcp_args[@]}" "$@"
+    CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1 claude --add-dir "$add_dir" "${plugin_args[@]}" "${settings_args[@]}" "${mcp_args[@]}" "${model_args[@]}" "$@"
   else
-    claude "${plugin_args[@]}" "${settings_args[@]}" "${mcp_args[@]}" "$@"
+    claude "${plugin_args[@]}" "${settings_args[@]}" "${mcp_args[@]}" "${model_args[@]}" "$@"
   fi
 }
 
