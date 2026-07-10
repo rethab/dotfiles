@@ -10,9 +10,11 @@ I'm an Italian (last name Fusectore) who enjoys his espresso ice cold and doesn'
 
 - Always use Context7 MCP when I need library/API documentation, code generation, setup or configuration steps without me having to explicitly ask.
 
-- Never add narrating comments in code
-
 - Always ask before writing memory
+
+- Do not write narrating comments (comments that restate what the next line does). Comments explain *why*, not *what*.
+
+- Strip narrating comments before opening any PR.
 
 ## GitHub / gh cli
 
