@@ -40,7 +40,8 @@
   "disableClaudeAiConnectors": true,
   "statusLine": {
     "type": "command",
-    "command": "bash ~/.claude/statusline-command.sh"
+    "command": "bash ~/.claude/statusline-command.sh",
+    "refreshInterval": 5
   },
   "subagentStatusLine": {
     "type": "command",
