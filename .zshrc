@@ -43,6 +43,9 @@ export PATH="/Users/rethab/.rd/bin:$PATH"
 ### Added for Claude Code
 export PATH="/Users/rethab/.local/bin:$PATH"
 
+# Destination for local Claude Code OpenTelemetry data (see c() in alias.sh)
+export CLAUDE_OTEL_DATA_DIR="$HOME/data/claude"
+
 # testcontainers for rancher desktop: https://java.testcontainers.org/supported_docker_environment/
 export DOCKER_HOST=unix://$HOME/.rd/docker.sock
 export TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock

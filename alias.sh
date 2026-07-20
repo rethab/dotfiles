@@ -1,6 +1,5 @@
 #!/bin/bash
 
-# Linux
 alias ls='ls -G'
 alias cp='cp -i'
 alias mv='mv -i'
@@ -63,12 +62,51 @@ _claude_find_parent_mcp_config() {
   fi
 }
 
+_claude_ensure_otel() {
+  local name="claude-otel-collector"
+  local image="otel/opentelemetry-collector-contrib:0.156.0"
+  local config="$HOME/dev/private/dotfiles/.claude/otel/collector-config.yaml"
+
+  if [ -z "$CLAUDE_OTEL_DATA_DIR" ]; then
+    echo "c: CLAUDE_OTEL_DATA_DIR is not set — telemetry has nowhere to go." >&2
+    return 1
+  fi
+  mkdir -p "$CLAUDE_OTEL_DATA_DIR" || return 1
+
+  if docker ps --format '{{.Names}}' | grep -qx "$name"; then
+    return 0
+  elif docker ps -a --format '{{.Names}}' | grep -qx "$name"; then
+    docker start "$name" >/dev/null
+  else
+    docker run -d --name "$name" --restart unless-stopped \
+      -p 4317:4317 -p 4318:4318 \
+      -v "$config":/etc/otelcol-contrib/config.yaml:ro \
+      -v "$CLAUDE_OTEL_DATA_DIR":/data \
+      "$image" >/dev/null
+  fi
+}
+
 c() {
-  # `agents` is the only subcommand we pass through; everything else that
-  # doesn't start with `-` is treated as a prompt.
   if [ "$1" != "agents" ] && [ $# -gt 0 ] && [ "${1#-}" = "$1" ]; then
     set -- -- "$*"
   fi
+  _claude_ensure_otel || return 1
+  export CLAUDE_CODE_ENABLE_TELEMETRY=1
+  export OTEL_METRICS_EXPORTER=otlp
+  export OTEL_LOGS_EXPORTER=otlp
+  export OTEL_TRACES_EXPORTER=otlp
+  export CLAUDE_CODE_ENHANCED_TELEMETRY_BETA=1
+  export OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+  export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+  export OTEL_LOG_USER_PROMPTS=1
+  export OTEL_LOG_ASSISTANT_RESPONSES=1
+  export OTEL_LOG_TOOL_DETAILS=1
+  export OTEL_LOG_TOOL_CONTENT=1
+  export OTEL_LOG_RAW_API_BODIES=1
+  export OTEL_METRICS_INCLUDE_VERSION=true
+  export OTEL_METRICS_INCLUDE_ENTRYPOINT=true
+  export OTEL_METRICS_INCLUDE_SESSION_ID=true
+  export OTEL_METRICS_INCLUDE_ACCOUNT_UUID=true
   local add_dir="$(_claude_find_parent_claude_md)"
   local settings_file="$(_claude_find_parent_settings)"
   local mcp_config="$(_claude_find_parent_mcp_config)"
@@ -111,7 +149,6 @@ mw() {
   fi
 }
 
-# Git
 alias g='git grep'
 alias gp='git push'
 alias gl='git status'

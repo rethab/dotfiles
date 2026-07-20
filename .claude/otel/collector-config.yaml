@@ -1,0 +1,42 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+
+exporters:
+  file/metrics:
+    path: /data/metrics.jsonl
+    rotation:
+      max_megabytes: 20
+      max_backups: 10
+  file/logs:
+    path: /data/logs.jsonl
+    rotation:
+      max_megabytes: 20
+      max_backups: 10
+  file/traces:
+    path: /data/traces.jsonl
+    rotation:
+      max_megabytes: 20
+      max_backups: 10
+
+service:
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [file/metrics]
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [file/logs]
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [file/traces]
