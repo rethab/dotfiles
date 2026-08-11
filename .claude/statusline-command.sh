@@ -92,10 +92,91 @@ parse_pct() {
     fi
 }
 
-# Extract rate_limits from the native statusline JSON (added in v2.1.80)
-# This replaces the old workaround that fetched from /api/oauth/usage directly
+# Formats an {amount_minor, exponent} pair as a dollar amount (801, 2 -> 8.01)
+format_minor_dollars() {
+    awk "BEGIN { printf \"%.2f\", ${1:-0} / (10 ^ ${2:-2}) }"
+}
+
+# Usage-based enterprise seats are billed in dollars, not 5h/7d windows, so the
+# native statusline JSON carries no rate_limits block for them. Refresh the org
+# spend from the OAuth usage API into a cache, in the background so the render
+# never blocks: this invocation shows whatever cache exists, the fetched value
+# lands on the next refresh. Fully detached (>/dev/null) so the harness doesn't
+# wait on the child's pipes.
+ENTERPRISE_USAGE_CACHE="${TMPDIR:-/tmp}/claude-enterprise-usage.json"
+ENTERPRISE_USAGE_TTL=60
+refresh_enterprise_usage_cache() {
+    local now age
+    now=$(date +%s)
+    if [[ -f "$ENTERPRISE_USAGE_CACHE" ]]; then
+        age=$(( now - $(stat -f %m "$ENTERPRISE_USAGE_CACHE" 2>/dev/null || echo 0) ))
+        [[ $age -lt $ENTERPRISE_USAGE_TTL ]] && return
+    fi
+    (
+        local token
+        token=$(security find-generic-password -s "Claude Code-credentials" -w 2>/dev/null \
+                | jq -r '.claudeAiOauth.accessToken // empty' 2>/dev/null)
+        [[ -z "$token" ]] && exit 0
+        curl -sS -m 5 "https://api.anthropic.com/api/oauth/usage" \
+            -H "Authorization: Bearer $token" \
+            -H "anthropic-beta: oauth-2025-04-20" \
+            -H "User-Agent: claude-cli/statusline (external, cli)" \
+            -o "$ENTERPRISE_USAGE_CACHE.tmp" \
+            && mv "$ENTERPRISE_USAGE_CACHE.tmp" "$ENTERPRISE_USAGE_CACHE"
+    ) >/dev/null 2>&1 &
+    disown 2>/dev/null
+}
+
+# Account type drives which usage model applies. seatTier lives in the main
+# config file (plain read — no keychain hit on every refresh); the keychain is
+# only touched by the throttled background fetch above.
 usage_info=""
-IFS=$'\x1e' read -r five_hour_pct five_hour_resets \
+account_seat=$(jq -r '.oauthAccount.seatTier // ""' "$HOME/.claude.json" 2>/dev/null)
+
+if [[ "$account_seat" == "enterprise_usage_based" ]]; then
+    refresh_enterprise_usage_cache
+
+    session_cost=$(jq -r '(.cost.total_cost_usd // 0)' <<< "$input")
+    if [[ -n "$session_cost" && "$session_cost" != "null" ]]; then
+        usage_info=$(printf ' | Sess: %s$%.2f%s' "$GREEN" "$session_cost" "$RESET")
+    fi
+
+    if [[ -f "$ENTERPRISE_USAGE_CACHE" ]]; then
+        IFS=$'\x1e' read -r spend_enabled used_minor used_exp limit_minor limit_exp spend_pct spend_resets \
+            <<< "$(jq -r '[
+              (.spend.enabled // false),
+              (.spend.used.amount_minor // 0),
+              (.spend.used.exponent // 2),
+              (.spend.limit.amount_minor // ""),
+              (.spend.limit.exponent // 2),
+              (.spend.percent // 0),
+              (.nimbus_quill.resets_at // "")
+            ] | join("")' "$ENTERPRISE_USAGE_CACHE" 2>/dev/null)"
+
+        if [[ "$spend_enabled" == "true" ]]; then
+            used_dollars=$(format_minor_dollars "$used_minor" "$used_exp")
+            if [[ -n "$limit_minor" && "$limit_minor" != "null" ]]; then
+                limit_dollars=$(format_minor_dollars "$limit_minor" "$limit_exp")
+                spend_pct_int=$(parse_pct "$spend_pct")
+                spend_color=$(get_usage_color "$spend_pct_int")
+                spend_seg=$(printf ' | Spend: %s$%s%s/$%s (%s%s%%%s)' \
+                    "$spend_color" "$used_dollars" "$RESET" "$limit_dollars" \
+                    "$spend_color" "$spend_pct_int" "$RESET")
+                # resets_at is rendered only when it is an epoch; ISO strings are skipped
+                if [[ "$spend_resets" =~ ^[0-9]+$ ]]; then
+                    spend_seg="${spend_seg} ($(format_time_remaining "$spend_resets"))"
+                fi
+            else
+                spend_seg=$(printf ' | Spend: %s$%s%s' "$GREEN" "$used_dollars" "$RESET")
+            fi
+            usage_info="${usage_info}${spend_seg}"
+        fi
+    fi
+else
+    # Subscription (Pro/Max) accounts: 5h/7d rate_limits from the native
+    # statusline JSON (added in v2.1.80), replacing the old /api/oauth/usage
+    # workaround that fetched directly.
+    IFS=$'\x1e' read -r five_hour_pct five_hour_resets \
                      seven_day_pct seven_day_resets \
     <<< "$(jq -r '[
       (.rate_limits.five_hour.used_percentage // 0),
@@ -104,18 +185,19 @@ IFS=$'\x1e' read -r five_hour_pct five_hour_resets \
       (.rate_limits.seven_day.resets_at // "")
     ] | join("\u001e")' <<< "$input")"
 
-five_hour_pct=$(parse_pct "$five_hour_pct")
-seven_day_pct=$(parse_pct "$seven_day_pct")
+    five_hour_pct=$(parse_pct "$five_hour_pct")
+    seven_day_pct=$(parse_pct "$seven_day_pct")
 
-if [[ "$five_hour_pct" -gt 0 ]] 2>/dev/null || [[ "$seven_day_pct" -gt 0 ]] 2>/dev/null; then
-    daily_color=$(get_usage_color "$five_hour_pct")
-    weekly_color=$(get_usage_color "$seven_day_pct")
-    daily_reset=$(format_time_remaining "$five_hour_resets")
-    weekly_reset=$(format_time_remaining "$seven_day_resets")
+    if [[ "$five_hour_pct" -gt 0 ]] 2>/dev/null || [[ "$seven_day_pct" -gt 0 ]] 2>/dev/null; then
+        daily_color=$(get_usage_color "$five_hour_pct")
+        weekly_color=$(get_usage_color "$seven_day_pct")
+        daily_reset=$(format_time_remaining "$five_hour_resets")
+        weekly_reset=$(format_time_remaining "$seven_day_resets")
 
-    usage_info=$(printf ' | 5h: %s%s%%%s (%s) | 7d: %s%s%%%s (%s)' \
-        "$daily_color" "$five_hour_pct" "$RESET" "$daily_reset" \
-        "$weekly_color" "$seven_day_pct" "$RESET" "$weekly_reset")
+        usage_info=$(printf ' | 5h: %s%s%%%s (%s) | 7d: %s%s%%%s (%s)' \
+            "$daily_color" "$five_hour_pct" "$RESET" "$daily_reset" \
+            "$weekly_color" "$seven_day_pct" "$RESET" "$weekly_reset")
+    fi
 fi
 
 # Detect caveman mode from flag file (juliusbrussee/caveman plugin).
