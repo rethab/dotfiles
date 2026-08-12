@@ -1,14 +1,27 @@
 #!/bin/bash
 
-# ANSI color constants
 GREEN=$'\033[32m'; YELLOW=$'\033[33m'; RED=$'\033[31m'
 CYAN=$'\033[36m'; MAGENTA=$'\033[35m'; RESET=$'\033[0m'
 CAVEMAN_ORANGE=$'\033[38;5;172m'
 
-# Read JSON input from stdin
+# Per-account state lives under the active config dir, not $HOME. Claude Code
+# namespaces the keychain credential by the config dir path (sha256 prefix),
+# leaving the bare service name to the default profile — so a work profile must
+# not read the private account's token or config.
+config_dir="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+credentials_service="Claude Code-credentials"
+profile_suffix=""
+# The default profile keeps its config json at $HOME, beside ~/.claude rather
+# than inside it; custom config dirs keep theirs within.
+config_json="$HOME/.claude.json"
+if [[ "$config_dir" != "$HOME/.claude" ]]; then
+    profile_suffix="-$(printf '%s' "$config_dir" | shasum -a 256 | cut -c1-8)"
+    credentials_service="${credentials_service}${profile_suffix}"
+    config_json="$config_dir/.claude.json"
+fi
+
 input=$(</dev/stdin)
 
-# Extract all needed values from input JSON in a single jq call
 IFS=$'\t' read -r model cwd current size <<< "$(jq -r '[
   .model.display_name,
   .workspace.current_dir,
@@ -16,7 +29,6 @@ IFS=$'\t' read -r model cwd current size <<< "$(jq -r '[
   (.context_window.context_window_size // 0)
 ] | @tsv' <<< "$input")"
 
-# Detect whether we have context usage data
 has_context=false
 context_percentage=0
 if [[ "$current" != "0" || "$size" != "0" ]] && [[ "$size" -gt 0 ]] 2>/dev/null; then
@@ -24,14 +36,14 @@ if [[ "$current" != "0" || "$size" != "0" ]] && [[ "$size" -gt 0 ]] 2>/dev/null;
     context_percentage=$((current * 100 / size))
 fi
 
-# Get git branch (skip optional locks to avoid blocking)
+# Skip optional locks so a concurrent git operation can't block the render.
 git_branch=""
 if git -C "$cwd" rev-parse --git-dir > /dev/null 2>&1; then
     git_branch=$(git -C "$cwd" --no-optional-locks rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
 fi
 
-# Returns green/yellow/red ANSI code based on percentage (integer).
-# Optional second arg: context window size — tighter thresholds for large contexts (>=500k).
+# Large context windows get tighter thresholds: the same percentage leaves far
+# less absolute headroom.
 get_usage_color() {
     local util=${1%.*}
     local ctx_size=${2:-0}
@@ -48,7 +60,6 @@ get_usage_color() {
     fi
 }
 
-# Takes a Unix epoch timestamp and returns the wall-clock reset time (e.g. "4pm")
 format_reset_time() {
     local reset_time=$1
     if [[ -z "$reset_time" || "$reset_time" == "0" ]]; then
@@ -58,7 +69,6 @@ format_reset_time() {
     date -r "$reset_time" +%-I%p | tr '[:upper:]' '[:lower:]'
 }
 
-# Takes a Unix epoch timestamp and returns human-readable time remaining
 format_time_remaining() {
     local reset_time=$1
     if [[ -z "$reset_time" || "$reset_time" == "0" ]]; then
@@ -82,7 +92,6 @@ format_time_remaining() {
     fi
 }
 
-# Rounds a utilization value to an integer percentage, defaulting to 0
 parse_pct() {
     local v=$1
     if [[ -n "$v" && "$v" != "null" ]]; then
@@ -92,7 +101,6 @@ parse_pct() {
     fi
 }
 
-# Formats an {amount_minor, exponent} pair as a dollar amount (801, 2 -> 8.01)
 format_minor_dollars() {
     awk "BEGIN { printf \"%.2f\", ${1:-0} / (10 ^ ${2:-2}) }"
 }
@@ -103,7 +111,7 @@ format_minor_dollars() {
 # never blocks: this invocation shows whatever cache exists, the fetched value
 # lands on the next refresh. Fully detached (>/dev/null) so the harness doesn't
 # wait on the child's pipes.
-ENTERPRISE_USAGE_CACHE="${TMPDIR:-/tmp}/claude-enterprise-usage.json"
+ENTERPRISE_USAGE_CACHE="${TMPDIR:-/tmp}/claude-enterprise-usage${profile_suffix}.json"
 ENTERPRISE_USAGE_TTL=60
 refresh_enterprise_usage_cache() {
     local now age
@@ -114,7 +122,7 @@ refresh_enterprise_usage_cache() {
     fi
     (
         local token
-        token=$(security find-generic-password -s "Claude Code-credentials" -w 2>/dev/null \
+        token=$(security find-generic-password -s "$credentials_service" -w 2>/dev/null \
                 | jq -r '.claudeAiOauth.accessToken // empty' 2>/dev/null)
         [[ -z "$token" ]] && exit 0
         curl -sS -m 5 "https://api.anthropic.com/api/oauth/usage" \
@@ -131,7 +139,7 @@ refresh_enterprise_usage_cache() {
 # config file (plain read — no keychain hit on every refresh); the keychain is
 # only touched by the throttled background fetch above.
 usage_info=""
-account_seat=$(jq -r '.oauthAccount.seatTier // ""' "$HOME/.claude.json" 2>/dev/null)
+account_seat=$(jq -r '.oauthAccount.seatTier // ""' "$config_json" 2>/dev/null)
 
 if [[ "$account_seat" == "enterprise_usage_based" ]]; then
     refresh_enterprise_usage_cache
@@ -200,13 +208,11 @@ else
     fi
 fi
 
-# Detect caveman mode from flag file (juliusbrussee/caveman plugin).
-# The plugin only deletes the flag when toggled off in-band ("stop caveman");
+# The caveman plugin only deletes its flag when toggled off in-band ("stop caveman");
 # if it's disabled in settings its hooks never run, leaving a stale flag. So
 # settings is the source of truth: when the plugin is disabled we ignore the
 # flag entirely and show no badge.
 caveman_badge=""
-config_dir="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 caveman_flag="$config_dir/.caveman-active"
 caveman_enabled=$(jq -r '.enabledPlugins."caveman@caveman" // false' "$config_dir/settings.json" 2>/dev/null)
 if [[ "$caveman_enabled" != "true" ]]; then
@@ -228,7 +234,6 @@ else
     caveman_badge=$(printf '%s[CAVEMAN:OFF]%s' "$CAVEMAN_ORANGE" "$RESET")
 fi
 
-# Build the status line (common prefix, conditional context suffix)
 status=$(printf '%s%s%s in %s%s%s' "$CYAN" "$model" "$RESET" "$GREEN" "$(basename "$cwd")" "$RESET")
 if [[ -n "$git_branch" ]]; then
     status=$(printf '%s on %s%s%s' "$status" "$MAGENTA" "$git_branch" "$RESET")

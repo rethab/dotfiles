@@ -62,6 +62,17 @@ _claude_find_parent_mcp_config() {
   fi
 }
 
+_claude_account_config_dir() {
+  local dir="$PWD"
+  while [ "$dir" != "$HOME" ] && [ "$dir" != "/" ]; do
+    if [ -f "$dir/.claude-account" ]; then
+      cat "$dir/.claude-account"
+      return
+    fi
+    dir="$(dirname "$dir")"
+  done
+}
+
 _claude_ensure_otel() {
   local name="claude-otel-collector"
   local image="otel/opentelemetry-collector-contrib:0.156.0"
@@ -90,6 +101,11 @@ c() {
   if [ "$1" != "agents" ] && [ $# -gt 0 ] && [ "${1#-}" = "$1" ]; then
     set -- -- "$*"
   fi
+  # Scoped to the child rather than exported: a leaked CLAUDE_CONFIG_DIR would
+  # silently point a later bare `claude` at the wrong account.
+  local account_config_dir="$(_claude_account_config_dir)"
+  local config_env=(env -u CLAUDE_CONFIG_DIR)
+  [ -n "$account_config_dir" ] && config_env=(env "CLAUDE_CONFIG_DIR=$account_config_dir")
   _claude_ensure_otel || return 1
   export CLAUDE_CODE_ENABLE_TELEMETRY=1
   export OTEL_METRICS_EXPORTER=otlp
@@ -129,9 +145,9 @@ c() {
   [ "$has_model" -eq 0 ] && model_args=(--model default)
   export CLAUDE_CODE_NO_FLICKER=1
   if [ -n "$add_dir" ]; then
-    CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1 claude --add-dir "$add_dir" "${plugin_args[@]}" "${settings_args[@]}" "${mcp_args[@]}" "${model_args[@]}" "$@"
+    "${config_env[@]}" CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1 claude --add-dir "$add_dir" "${plugin_args[@]}" "${settings_args[@]}" "${mcp_args[@]}" "${model_args[@]}" "$@"
   else
-    claude "${plugin_args[@]}" "${settings_args[@]}" "${mcp_args[@]}" "${model_args[@]}" "$@"
+    "${config_env[@]}" claude "${plugin_args[@]}" "${settings_args[@]}" "${mcp_args[@]}" "${model_args[@]}" "$@"
   fi
 }
 
