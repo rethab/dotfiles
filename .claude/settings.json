@@ -48,16 +48,7 @@
     "command": "bash ~/.claude/subagent-statusline.sh"
   },
   "enabledPlugins": {
-    "context7@claude-plugins-official": true,
-    "caveman@caveman": false
-  },
-  "extraKnownMarketplaces": {
-    "caveman": {
-      "source": {
-        "source": "github",
-        "repo": "JuliusBrussee/caveman"
-      }
-    }
+    "context7@claude-plugins-official": true
   },
   "spinnerVerbs": {
     "mode": "replace",

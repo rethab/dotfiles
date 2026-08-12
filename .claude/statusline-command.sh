@@ -2,7 +2,6 @@
 
 GREEN=$'\033[32m'; YELLOW=$'\033[33m'; RED=$'\033[31m'
 CYAN=$'\033[36m'; MAGENTA=$'\033[35m'; RESET=$'\033[0m'
-CAVEMAN_ORANGE=$'\033[38;5;172m'
 
 # Per-account state lives under the active config dir, not $HOME. Claude Code
 # namespaces the keychain credential by the config dir path (sha256 prefix),
@@ -112,25 +111,60 @@ format_minor_dollars() {
 # lands on the next refresh. Fully detached (>/dev/null) so the harness doesn't
 # wait on the child's pipes.
 ENTERPRISE_USAGE_CACHE="${TMPDIR:-/tmp}/claude-enterprise-usage${profile_suffix}.json"
-ENTERPRISE_USAGE_TTL=60
+ENTERPRISE_USAGE_FAIL="$ENTERPRISE_USAGE_CACHE.fail"
+ENTERPRISE_USAGE_LOCK="$ENTERPRISE_USAGE_CACHE.lock"
+ENTERPRISE_USAGE_TTL=300
+# The endpoint rate limits aggressively, so a failed fetch parks further attempts
+# instead of retrying every TTL and digging the hole deeper.
+ENTERPRISE_USAGE_BACKOFF=600
+# A lock orphaned by a killed render must not wedge refreshes forever.
+ENTERPRISE_USAGE_LOCK_TIMEOUT=120
+
+file_age() {
+    local mtime
+    mtime=$(stat -f %m "$1" 2>/dev/null) || return 1
+    echo $(( $(date +%s) - mtime ))
+}
+
 refresh_enterprise_usage_cache() {
-    local now age
-    now=$(date +%s)
-    if [[ -f "$ENTERPRISE_USAGE_CACHE" ]]; then
-        age=$(( now - $(stat -f %m "$ENTERPRISE_USAGE_CACHE" 2>/dev/null || echo 0) ))
-        [[ $age -lt $ENTERPRISE_USAGE_TTL ]] && return
+    local age
+    if age=$(file_age "$ENTERPRISE_USAGE_CACHE") && [[ $age -lt $ENTERPRISE_USAGE_TTL ]]; then
+        return
+    fi
+    if age=$(file_age "$ENTERPRISE_USAGE_FAIL") && [[ $age -lt $ENTERPRISE_USAGE_BACKOFF ]]; then
+        return
+    fi
+    # Every open session re-renders on a timer, so without a lock they all fire a
+    # request in the same tick the moment the cache goes stale — which is what
+    # earns the rate limiting in the first place.
+    if ! mkdir "$ENTERPRISE_USAGE_LOCK" 2>/dev/null; then
+        if age=$(file_age "$ENTERPRISE_USAGE_LOCK") && [[ $age -gt $ENTERPRISE_USAGE_LOCK_TIMEOUT ]]; then
+            rmdir "$ENTERPRISE_USAGE_LOCK" 2>/dev/null
+        fi
+        return
     fi
     (
-        local token
+        trap 'rmdir "$ENTERPRISE_USAGE_LOCK" 2>/dev/null' EXIT
+        local token tmp code
         token=$(security find-generic-password -s "$credentials_service" -w 2>/dev/null \
                 | jq -r '.claudeAiOauth.accessToken // empty' 2>/dev/null)
-        [[ -z "$token" ]] && exit 0
-        curl -sS -m 5 "https://api.anthropic.com/api/oauth/usage" \
+        [[ -z "$token" ]] && { : > "$ENTERPRISE_USAGE_FAIL"; exit 0; }
+        # Per-PID so concurrent fetches can't interleave into one another's file.
+        tmp="$ENTERPRISE_USAGE_CACHE.$BASHPID.tmp"
+        code=$(curl -sS -m 5 -w '%{http_code}' "https://api.anthropic.com/api/oauth/usage" \
             -H "Authorization: Bearer $token" \
             -H "anthropic-beta: oauth-2025-04-20" \
             -H "User-Agent: claude-cli/statusline (external, cli)" \
-            -o "$ENTERPRISE_USAGE_CACHE.tmp" \
-            && mv "$ENTERPRISE_USAGE_CACHE.tmp" "$ENTERPRISE_USAGE_CACHE"
+            -o "$tmp")
+        # curl exits 0 on a 429 or 401, so the status and payload shape decide:
+        # only a real usage body may replace the last known good value.
+        if [[ "$code" == "200" ]] && jq -e '.spend' "$tmp" >/dev/null 2>&1; then
+            mv "$tmp" "$ENTERPRISE_USAGE_CACHE"
+            rm -f "$ENTERPRISE_USAGE_FAIL"
+        else
+            rm -f "$tmp"
+            : > "$ENTERPRISE_USAGE_FAIL"
+        fi
     ) >/dev/null 2>&1 &
     disown 2>/dev/null
 }
@@ -163,19 +197,23 @@ if [[ "$account_seat" == "enterprise_usage_based" ]]; then
 
         if [[ "$spend_enabled" == "true" ]]; then
             used_dollars=$(format_minor_dollars "$used_minor" "$used_exp")
+            # The cache is served past its TTL rather than dropping the segment,
+            # so a failed refresh has to admit the number is last known good.
+            stale_marker=""
+            [[ -f "$ENTERPRISE_USAGE_FAIL" ]] && stale_marker="~"
             if [[ -n "$limit_minor" && "$limit_minor" != "null" ]]; then
                 limit_dollars=$(format_minor_dollars "$limit_minor" "$limit_exp")
                 spend_pct_int=$(parse_pct "$spend_pct")
                 spend_color=$(get_usage_color "$spend_pct_int")
-                spend_seg=$(printf ' | Spend: %s$%s%s/$%s (%s%s%%%s)' \
-                    "$spend_color" "$used_dollars" "$RESET" "$limit_dollars" \
+                spend_seg=$(printf ' | Spend: %s%s$%s%s/$%s (%s%s%%%s)' \
+                    "$spend_color" "$stale_marker" "$used_dollars" "$RESET" "$limit_dollars" \
                     "$spend_color" "$spend_pct_int" "$RESET")
                 # resets_at is rendered only when it is an epoch; ISO strings are skipped
                 if [[ "$spend_resets" =~ ^[0-9]+$ ]]; then
                     spend_seg="${spend_seg} ($(format_time_remaining "$spend_resets"))"
                 fi
             else
-                spend_seg=$(printf ' | Spend: %s$%s%s' "$GREEN" "$used_dollars" "$RESET")
+                spend_seg=$(printf ' | Spend: %s%s$%s%s' "$GREEN" "$stale_marker" "$used_dollars" "$RESET")
             fi
             usage_info="${usage_info}${spend_seg}"
         fi
@@ -208,32 +246,6 @@ else
     fi
 fi
 
-# The caveman plugin only deletes its flag when toggled off in-band ("stop caveman");
-# if it's disabled in settings its hooks never run, leaving a stale flag. So
-# settings is the source of truth: when the plugin is disabled we ignore the
-# flag entirely and show no badge.
-caveman_badge=""
-caveman_flag="$config_dir/.caveman-active"
-caveman_enabled=$(jq -r '.enabledPlugins."caveman@caveman" // false' "$config_dir/settings.json" 2>/dev/null)
-if [[ "$caveman_enabled" != "true" ]]; then
-    caveman_badge=""
-elif [[ -L "$caveman_flag" ]]; then
-    caveman_badge=""
-elif [[ -f "$caveman_flag" ]]; then
-    caveman_mode=$(head -c 64 "$caveman_flag" 2>/dev/null | tr -d '\n\r' | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9-')
-    case "$caveman_mode" in
-        off|lite|full|ultra|wenyan-lite|wenyan|wenyan-full|wenyan-ultra|commit|review|compress)
-            if [[ -z "$caveman_mode" || "$caveman_mode" == "full" ]]; then
-                caveman_badge=$(printf '%s[CAVEMAN]%s' "$CAVEMAN_ORANGE" "$RESET")
-            else
-                caveman_badge=$(printf '%s[CAVEMAN:%s]%s' "$CAVEMAN_ORANGE" "$(printf '%s' "$caveman_mode" | tr '[:lower:]' '[:upper:]')" "$RESET")
-            fi
-            ;;
-    esac
-else
-    caveman_badge=$(printf '%s[CAVEMAN:OFF]%s' "$CAVEMAN_ORANGE" "$RESET")
-fi
-
 status=$(printf '%s%s%s in %s%s%s' "$CYAN" "$model" "$RESET" "$GREEN" "$(basename "$cwd")" "$RESET")
 if [[ -n "$git_branch" ]]; then
     status=$(printf '%s on %s%s%s' "$status" "$MAGENTA" "$git_branch" "$RESET")
@@ -244,9 +256,6 @@ if [[ "$has_context" == "true" ]]; then
 fi
 if [[ -n "$usage_info" ]]; then
     status="${status}${usage_info}"
-fi
-if [[ -n "$caveman_badge" ]]; then
-    status="${status} ${caveman_badge}"
 fi
 
 echo "$status"
