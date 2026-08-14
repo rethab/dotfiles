@@ -1,7 +1,7 @@
 #!/bin/bash
 
 GREEN=$'\033[32m'; YELLOW=$'\033[33m'; RED=$'\033[31m'
-CYAN=$'\033[36m'; MAGENTA=$'\033[35m'; RESET=$'\033[0m'
+CYAN=$'\033[36m'; MAGENTA=$'\033[35m'; DIM=$'\033[2m'; RESET=$'\033[0m'
 
 # Per-account state lives under the active config dir, not $HOME. Claude Code
 # namespaces the keychain credential by the config dir path (sha256 prefix),
@@ -21,11 +21,14 @@ fi
 
 input=$(</dev/stdin)
 
-IFS=$'\t' read -r model cwd current size <<< "$(jq -r '[
+IFS=$'\t' read -r model cwd current size model_id transcript session_id <<< "$(jq -r '[
   .model.display_name,
   .workspace.current_dir,
   ((.context_window.current_usage // {}) | ((.input_tokens // 0) + (.cache_creation_input_tokens // 0) + (.cache_read_input_tokens // 0))),
-  (.context_window.context_window_size // 0)
+  (.context_window.context_window_size // 0),
+  (.model.id // ""),
+  (.transcript_path // ""),
+  (.session_id // "")
 ] | @tsv' <<< "$input")"
 
 has_context=false
@@ -57,6 +60,80 @@ get_usage_color() {
     else
         echo "$RED"
     fi
+}
+
+# Prompt caches expire an hour after the last request, and the API is stateless:
+# once the entry is gone the whole prefix is re-sent at the cache-write rate,
+# which is 12.5x a cache read. Nothing in the statusline JSON reports this, so
+# the gap is derived from when the transcript last recorded an API response.
+CACHE_TTL=3600
+# The system-prompt/tools/CLAUDE.md prefix is byte-identical across sessions, so
+# concurrent sessions keep it hot for free and only the conversation tail
+# actually goes cold. Measured at ~31k; without this the estimate runs 30% high.
+CACHE_WARM_FLOOR=31000
+# Below this a re-write is too cheap to be worth screen space. Must stay above
+# the warm floor, or the estimate clamps to zero and the segment reads $0.00.
+CACHE_MIN_CTX=50000
+# The countdown is only actionable near the end, so it stays hidden until here.
+CACHE_WARN_MINS=20
+
+cache_segment() {
+    local ctx=$1 mid=$2 path=$3 sid=$4
+    [[ -n "$path" && -f "$path" ]] || return
+    [[ "$ctx" -ge $CACHE_MIN_CTX ]] 2>/dev/null || return
+
+    # Only assistant records correspond to an API response, and they are the
+    # minority: mode changes, permission toggles, title updates and file-history
+    # snapshots all write to the transcript without touching the API. Anchoring
+    # on the file's mtime would read "warm" while the cache is actually cooling,
+    # so the last assistant turn is the reference and mtime only a fallback for
+    # when none is left inside the tail window.
+    local last age write_rate reload sentinel
+    last=$(tail -c 300000 "$path" 2>/dev/null | grep '"type":"assistant"' | tail -1 \
+           | grep -o '"timestamp":"[^"]*"' | head -1 | cut -d'"' -f4)
+    if [[ -n "$last" ]]; then
+        last=$(date -j -u -f "%Y-%m-%dT%H:%M:%S" "${last%.*}" +%s 2>/dev/null)
+    fi
+    [[ "$last" =~ ^[0-9]+$ ]] || last=$(stat -f %m "$path" 2>/dev/null) || return
+    age=$(( $(date +%s) - last ))
+
+    # Cache writes bill at 1.25x the model's input rate.
+    case "$mid" in
+        *opus*)           write_rate=6.25 ;;
+        *fable*|*mythos*) write_rate=12.50 ;;
+        *haiku*)          write_rate=1.25 ;;
+        *)                write_rate=3.75 ;;
+    esac
+
+    sentinel="${TMPDIR:-/tmp}/claude-cache-cold-$sid"
+    if [[ $age -lt $CACHE_TTL ]]; then
+        [[ -n "$sid" ]] && rm -f "$sentinel"
+        local left=$(( (CACHE_TTL - age) / 60 )) col
+        [[ $left -gt $CACHE_WARN_MINS ]] && return
+        if   [[ $left -le 5 ]];  then col=$RED
+        elif [[ $left -le 15 ]]; then col=$YELLOW
+        else col=$DIM; fi
+        printf ' | %scache %dm%s' "$col" "$left" "$RESET"
+        return
+    fi
+
+    # LC_ALL=C or a comma-decimal locale renders the figure as "$0,62".
+    reload=$(LC_ALL=C awk -v c="$ctx" -v f="$CACHE_WARM_FLOOR" -v r="$write_rate" \
+        'BEGIN{c-=f; if(c<0)c=0; printf "%.2f", c*r/1000000}')
+    local human
+    if   [[ $age -lt 7200 ]];   then human="$((age/60))m"
+    elif [[ $age -lt 172800 ]]; then human="$((age/3600))h"
+    else human="$((age/86400))d"; fi
+
+    # refreshInterval makes this the only thing running on a timer inside a live
+    # session, so a warm->cold transition is caught here or not at all. The
+    # sentinel holds it to one alert per cold period instead of one every 5s.
+    if [[ -n "$sid" && ! -f "$sentinel" ]]; then
+        : > "$sentinel"
+        osascript -e "display notification \"Reloading this ${ctx} token context will cost about \\\$$reload\" with title \"Claude Code cache expired\"" >/dev/null 2>&1 &
+        disown 2>/dev/null
+    fi
+    printf ' | %sCOLD %s · reload $%s%s' "$RED" "$human" "$reload" "$RESET"
 }
 
 format_reset_time() {
@@ -336,6 +413,7 @@ if [[ "$has_context" == "true" ]]; then
     context_color=$(get_usage_color "$context_percentage" "$size")
     status=$(printf '%s | Ctx: %s%d%%%s' "$status" "$context_color" "$context_percentage" "$RESET")
 fi
+status="${status}$(cache_segment "$current" "$model_id" "$transcript" "$session_id")"
 if [[ -n "$usage_info" ]]; then
     status="${status}${usage_info}"
 fi
