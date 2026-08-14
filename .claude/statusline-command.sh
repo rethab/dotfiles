@@ -19,6 +19,11 @@ if [[ "$config_dir" != "$HOME/.claude" ]]; then
     config_json="$config_dir/.claude.json"
 fi
 
+# Account type drives both the usage model and the context thresholds. seatTier
+# lives in the main config file (plain read — no keychain hit on every refresh);
+# the keychain is only touched by the throttled background fetch below.
+account_seat=$(jq -r '.oauthAccount.seatTier // ""' "$config_json" 2>/dev/null)
+
 input=$(</dev/stdin)
 
 IFS=$'\t' read -r model cwd current size model_id transcript session_id <<< "$(jq -r '[
@@ -44,21 +49,30 @@ if git -C "$cwd" rev-parse --git-dir > /dev/null 2>&1; then
     git_branch=$(git -C "$cwd" --no-optional-locks rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
 fi
 
-# Large context windows get tighter thresholds: the same percentage leaves far
-# less absolute headroom.
 get_usage_color() {
     local util=${1%.*}
-    local ctx_size=${2:-0}
-    local low=50 high=75
-    if [[ "$ctx_size" -ge 500000 ]] 2>/dev/null; then
-        low=30; high=40
-    fi
+    local low=${2:-50} high=${3:-75}
     if [[ $util -lt $low ]]; then
         echo "$GREEN"
     elif [[ $util -lt $high ]]; then
         echo "$YELLOW"
     else
         echo "$RED"
+    fi
+}
+
+# Enterprise seats are billed per token rather than against a window quota, so a
+# bloated context is re-billed on every cache read long before the window itself
+# is in danger. Large windows are tightened for the opposite reason: the same
+# percentage leaves far less absolute headroom.
+context_color() {
+    local pct=$1 ctx_size=$2
+    if [[ "$account_seat" == "enterprise_usage_based" ]]; then
+        get_usage_color "$pct" 15 25
+    elif [[ "$ctx_size" -ge 500000 ]] 2>/dev/null; then
+        get_usage_color "$pct" 30 40
+    else
+        get_usage_color "$pct"
     fi
 }
 
@@ -310,11 +324,7 @@ refresh_enterprise_usage_cache() {
     disown 2>/dev/null
 }
 
-# Account type drives which usage model applies. seatTier lives in the main
-# config file (plain read — no keychain hit on every refresh); the keychain is
-# only touched by the throttled background fetch above.
 usage_info=""
-account_seat=$(jq -r '.oauthAccount.seatTier // ""' "$config_json" 2>/dev/null)
 
 if [[ "$account_seat" == "enterprise_usage_based" ]]; then
     refresh_enterprise_usage_cache
@@ -410,8 +420,8 @@ if [[ -n "$git_branch" ]]; then
     status=$(printf '%s on %s%s%s' "$status" "$MAGENTA" "$git_branch" "$RESET")
 fi
 if [[ "$has_context" == "true" ]]; then
-    context_color=$(get_usage_color "$context_percentage" "$size")
-    status=$(printf '%s | Ctx: %s%d%%%s' "$status" "$context_color" "$context_percentage" "$RESET")
+    ctx_col=$(context_color "$context_percentage" "$size")
+    status=$(printf '%s | Ctx: %s%d%%%s' "$status" "$ctx_col" "$context_percentage" "$RESET")
 fi
 status="${status}$(cache_segment "$current" "$model_id" "$transcript" "$session_id")"
 if [[ -n "$usage_info" ]]; then
