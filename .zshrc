@@ -60,4 +60,19 @@ export NVM_DIR="$HOME/.nvm"
 #THIS MUST BE AT THE END OF THE FILE FOR SDKMAN TO WORK!!!
 export SDKMAN_DIR="$HOME/.sdkman"
 [[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]] && source "$HOME/.sdkman/bin/sdkman-init.sh"
+
+# SDKMAN's chpwd hook runs `sdk env clear` when leaving the directory that set
+# the env, dropping an explicitly chosen JDK back to the global default. Swap it
+# for one that only ever switches when a directory actually declares a version.
+if (( $+functions[sdkman_auto_env] )); then
+  autoload -Uz add-zsh-hook
+  add-zsh-hook -d chpwd sdkman_auto_env
+
+  sdkman_env_from_sdkmanrc() {
+    if [[ -f .sdkmanrc ]]; then
+      sdk env
+    fi
+  }
+  add-zsh-hook chpwd sdkman_env_from_sdkmanrc
+fi
 export PATH="/opt/homebrew/opt/libpq/bin:$PATH"
