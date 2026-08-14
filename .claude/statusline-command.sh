@@ -91,6 +91,42 @@ format_time_remaining() {
     fi
 }
 
+# Epoch of the anchor day at midnight within the month starting at $1, clamped
+# to the month's length so a day-31 anchor still lands in February.
+anchor_in_month() {
+    local month_first=$1 day=$2 days_in_month
+    days_in_month=$(date -r "$month_first" -v+1m -v-1d +%-d)
+    [[ $day -gt $days_in_month ]] && day=$days_in_month
+    date -r "$month_first" -v"+$((day - 1))d" +%s
+}
+
+# Emits "<cycle_start> <cycle_end>" for the monthly spend window. Month steps go
+# through the 1st because stepping a month off day 31 rolls over into the wrong
+# month on BSD date.
+spend_cycle_bounds() {
+    local anchor_day=$1 now month_first boundary
+    now=$(date +%s)
+    month_first=$(date -r "$now" -v1d -v0H -v0M -v0S +%s)
+    boundary=$(anchor_in_month "$month_first" "$anchor_day")
+    if [[ $boundary -gt $now ]]; then
+        echo "$(anchor_in_month "$(date -r "$month_first" -v-1m +%s)" "$anchor_day") $boundary"
+    else
+        echo "$boundary $(anchor_in_month "$(date -r "$month_first" -v+1m +%s)" "$anchor_day")"
+    fi
+}
+
+# Epoch at which the remaining budget runs out if spending continues at the
+# cycle's average rate so far. Empty when there is nothing to extrapolate from.
+project_exhaustion() {
+    local used=$1 limit=$2 cycle_start=$3
+    local now elapsed
+    now=$(date +%s)
+    elapsed=$((now - cycle_start))
+    [[ $elapsed -le 0 || $used -le 0 || $used -ge $limit ]] && return
+    awk -v now="$now" -v used="$used" -v limit="$limit" -v elapsed="$elapsed" \
+        'BEGIN { printf "%d", now + (limit - used) * elapsed / used }'
+}
+
 parse_pct() {
     local v=$1
     if [[ -n "$v" && "$v" != "null" ]]; then
@@ -113,17 +149,44 @@ format_minor_dollars() {
 ENTERPRISE_USAGE_CACHE="${TMPDIR:-/tmp}/claude-enterprise-usage${profile_suffix}.json"
 ENTERPRISE_USAGE_FAIL="$ENTERPRISE_USAGE_CACHE.fail"
 ENTERPRISE_USAGE_LOCK="$ENTERPRISE_USAGE_CACHE.lock"
+# The spend cycle has no reset timestamp in the API payload, so the anchor day is
+# learned from observed resets and kept outside $TMPDIR — losing it would cost a
+# whole billing cycle to relearn.
+ENTERPRISE_CYCLE_STATE_DIR="$config_dir/statusline"
+ENTERPRISE_CYCLE_ANCHOR="$ENTERPRISE_CYCLE_STATE_DIR/spend-cycle-anchor"
+ENTERPRISE_CYCLE_LAST="$ENTERPRISE_CYCLE_STATE_DIR/spend-last-used"
 ENTERPRISE_USAGE_TTL=300
 # The endpoint rate limits aggressively, so a failed fetch parks further attempts
 # instead of retrying every TTL and digging the hole deeper.
 ENTERPRISE_USAGE_BACKOFF=600
 # A lock orphaned by a killed render must not wedge refreshes forever.
 ENTERPRISE_USAGE_LOCK_TIMEOUT=120
+# A cycle rollover shows up as spend falling off a cliff, which is the only
+# signal available for when the month turns over. Anything short of a halving is
+# a refund or an adjustment; a drop first seen after this long says nothing about
+# which day it happened on.
+ENTERPRISE_CYCLE_MAX_DETECT_GAP=172800
 
 file_age() {
     local mtime
     mtime=$(stat -f %m "$1" 2>/dev/null) || return 1
     echo $(( $(date +%s) - mtime ))
+}
+
+learn_cycle_anchor() {
+    local payload=$1 used prev prev_age
+    used=$(jq -r '(.spend.used.amount_minor // "")' "$payload" 2>/dev/null)
+    [[ "$used" =~ ^[0-9]+$ ]] || return
+    prev=$(cat "$ENTERPRISE_CYCLE_LAST" 2>/dev/null)
+    prev_age=$(file_age "$ENTERPRISE_CYCLE_LAST")
+    mkdir -p "$ENTERPRISE_CYCLE_STATE_DIR" 2>/dev/null
+    # A drop seen after a long silence says nothing about which day it happened
+    # on, so it updates the baseline without moving the anchor.
+    if [[ "$prev" =~ ^[0-9]+$ && $prev -gt 0 && $((used * 2)) -lt $prev ]] \
+       && [[ -n "$prev_age" && $prev_age -lt $ENTERPRISE_CYCLE_MAX_DETECT_GAP ]]; then
+        date +%-d > "$ENTERPRISE_CYCLE_ANCHOR"
+    fi
+    printf '%s' "$used" > "$ENTERPRISE_CYCLE_LAST"
 }
 
 refresh_enterprise_usage_cache() {
@@ -159,6 +222,7 @@ refresh_enterprise_usage_cache() {
         # curl exits 0 on a 429 or 401, so the status and payload shape decide:
         # only a real usage body may replace the last known good value.
         if [[ "$code" == "200" ]] && jq -e '.spend' "$tmp" >/dev/null 2>&1; then
+            learn_cycle_anchor "$tmp"
             mv "$tmp" "$ENTERPRISE_USAGE_CACHE"
             rm -f "$ENTERPRISE_USAGE_FAIL"
         else
@@ -208,10 +272,28 @@ if [[ "$account_seat" == "enterprise_usage_based" ]]; then
                 spend_seg=$(printf ' | Spend: %s%s$%s%s/$%s (%s%s%%%s)' \
                     "$spend_color" "$stale_marker" "$used_dollars" "$RESET" "$limit_dollars" \
                     "$spend_color" "$spend_pct_int" "$RESET")
-                # resets_at is rendered only when it is an epoch; ISO strings are skipped
+
+                # An epoch resets_at is authoritative; the derived monthly cycle
+                # only covers for the payload not carrying one at all.
                 if [[ "$spend_resets" =~ ^[0-9]+$ ]]; then
-                    spend_seg="${spend_seg} ($(format_time_remaining "$spend_resets"))"
+                    cycle_end=$spend_resets
+                    cycle_start=""
+                else
+                    anchor_day=$(cat "$ENTERPRISE_CYCLE_ANCHOR" 2>/dev/null)
+                    [[ "$anchor_day" =~ ^[0-9]+$ ]] || anchor_day=1
+                    read -r cycle_start cycle_end <<< "$(spend_cycle_bounds "$anchor_day")"
                 fi
+
+                # The run-out estimate is the point of the segment, so it is only
+                # worth screen space while it still lands inside this cycle.
+                dry_seg=""
+                if [[ -n "$cycle_start" ]]; then
+                    dry_ts=$(project_exhaustion "$used_minor" "$limit_minor" "$cycle_start")
+                    if [[ -n "$dry_ts" && $dry_ts -lt $cycle_end ]]; then
+                        dry_seg=$(printf ' %sdry %s%s <' "$RED" "$(format_time_remaining "$dry_ts")" "$RESET")
+                    fi
+                fi
+                spend_seg="${spend_seg}${dry_seg} reset $(format_time_remaining "$cycle_end")"
             else
                 spend_seg=$(printf ' | Spend: %s%s$%s%s' "$GREEN" "$stale_marker" "$used_dollars" "$RESET")
             fi
