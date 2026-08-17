@@ -113,6 +113,20 @@ format_cache_left() {
     else echo "${left}s"; fi
 }
 
+# Cache writes bill at 1.25x the model's input rate on the 5m TTL, 2x on 1h.
+cache_write_rate() {
+    local rate
+    case "$1" in
+        *opus*)           rate=6.25 ;;
+        *fable*|*mythos*) rate=12.50 ;;
+        *haiku*)          rate=1.25 ;;
+        *)                rate=3.75 ;;
+    esac
+    [[ "$2" == "$CACHE_TTL_1H" ]] && rate=$(LC_ALL=C awk -v r="$rate" \
+        'BEGIN{printf "%.2f", r * 1.6}')
+    echo "$rate"
+}
+
 detect_cache_ttl() {
     local hit
     # Both counters are present on every write and one of them is always zero,
@@ -130,9 +144,12 @@ detect_cache_ttl() {
 # surrounding parens: what the cache costs is a property of the context that is
 # sitting in it, not an independent reading, and as its own pipe-delimited
 # segment it read as unrelated to the percentage it depends on.
+# The tail and the TTL it implies are read by the caller and passed in: both this
+# segment and the miss segment price tokens at the write rate, and a function
+# called in a $(...) subshell cannot hand the second one anything back.
 cache_detail() {
-    local ctx=$1 mid=$2 path=$3 sid=$4
-    [[ -n "$path" && -f "$path" ]] || return
+    local ctx=$1 mid=$2 path=$3 sid=$4 ttl=$5 tail_buf=$6
+    [[ -n "$path" && -f "$path" && -n "$ttl" ]] || return
     [[ "$ctx" -ge $CACHE_MIN_CTX ]] 2>/dev/null || return
 
     # Only assistant records correspond to an API response, and they are the
@@ -141,8 +158,7 @@ cache_detail() {
     # on the file's mtime would read "warm" while the cache is actually cooling,
     # so the last assistant turn is the reference and mtime only a fallback for
     # when none is left inside the tail window.
-    local last age write_rate reload sentinel ttl label tail_buf
-    tail_buf=$(tail -c 300000 "$path" 2>/dev/null)
+    local last age write_rate reload sentinel label
     last=$(grep '"type":"assistant"' <<< "$tail_buf" | tail -1 \
            | grep -o '"timestamp":"[^"]*"' | head -1 | cut -d'"' -f4)
     if [[ -n "$last" ]]; then
@@ -151,18 +167,9 @@ cache_detail() {
     [[ "$last" =~ ^[0-9]+$ ]] || last=$(stat -f %m "$path" 2>/dev/null) || return
     age=$(( $(date +%s) - last ))
 
-    ttl=$(detect_cache_ttl "$tail_buf")
     [[ "$ttl" == "$CACHE_TTL_5M" ]] && label="5m" || label="1h"
 
-    # Cache writes bill at 1.25x the model's input rate on the 5m TTL, 2x on 1h.
-    case "$mid" in
-        *opus*)           write_rate=6.25 ;;
-        *fable*|*mythos*) write_rate=12.50 ;;
-        *haiku*)          write_rate=1.25 ;;
-        *)                write_rate=3.75 ;;
-    esac
-    [[ "$ttl" == "$CACHE_TTL_1H" ]] && write_rate=$(LC_ALL=C awk -v r="$write_rate" \
-        'BEGIN{printf "%.2f", r * 1.6}')
+    write_rate=$(cache_write_rate "$mid" "$ttl")
 
     sentinel="${TMPDIR:-/tmp}/claude-cache-cold-$sid"
     if [[ $age -lt $ttl ]]; then
@@ -226,12 +233,18 @@ cache_detail() {
 CACHE_MISS_MIN_PCT=25
 
 cache_miss_segment() {
-    local written=$1 total=$2 pct col
+    local written=$1 total=$2 mid=$3 ttl=$4 pct col spent
     [[ "$total" -ge $CACHE_MIN_CTX && "$written" -gt 0 ]] 2>/dev/null || return
     pct=$(( written * 100 / total ))
     [[ $pct -ge $CACHE_MISS_MIN_PCT ]] || return
     [[ $pct -ge 75 ]] && col=$RED || col=$YELLOW
-    printf ' | %srewrote %dk (%d%%)%s' "$col" "$((written / 1000))" "$pct" "$RESET"
+    # The percentage says how badly the prefix broke, not what that was worth --
+    # the same 99% is a third of a cent on Haiku and half a dollar on Fable. The
+    # figure is what the write already cost, so it prices the interruption that
+    # caused it rather than the reload the cold-cache segment warns about.
+    spent=$(LC_ALL=C awk -v w="$written" -v r="$(cache_write_rate "$mid" "$ttl")" \
+        'BEGIN{printf "%.2f", w*r/1000000}')
+    printf ' | %srewrote %dk (%d%%, $%s)%s' "$col" "$((written / 1000))" "$pct" "$spent" "$RESET"
 }
 
 format_reset_time() {
@@ -506,7 +519,11 @@ fi
 # The token count is priced from current_usage alone, so this stays outside the
 # has_context check: a payload that carries usage but no window size still has a
 # cache worth reporting, and the cold-cache alert only fires from here.
-cache_note=$(cache_detail "$current" "$model_id" "$transcript" "$session_id")
+if [[ -n "$transcript" && -f "$transcript" ]] && [[ "$current" -ge $CACHE_MIN_CTX ]] 2>/dev/null; then
+    cache_tail=$(tail -c 300000 "$transcript" 2>/dev/null)
+    cache_ttl=$(detect_cache_ttl "$cache_tail")
+fi
+cache_note=$(cache_detail "$current" "$model_id" "$transcript" "$session_id" "$cache_ttl" "$cache_tail")
 if [[ "$has_context" == "true" ]]; then
     ctx_col=$(context_color "$context_percentage" "$size")
     status=$(printf '%s | Ctx: %s%d%%%s' "$status" "$ctx_col" "$context_percentage" "$RESET")
@@ -515,7 +532,7 @@ elif [[ -n "$cache_note" ]]; then
     # No percentage to hang the parenthetical on, so it falls back to a segment.
     status=$(printf '%s | %s' "$status" "$cache_note")
 fi
-status="${status}$(cache_miss_segment "$cache_written" "$current")"
+status="${status}$(cache_miss_segment "$cache_written" "$current" "$model_id" "${cache_ttl:-$CACHE_TTL_1H}")"
 if [[ -n "$usage_info" ]]; then
     status="${status}${usage_info}"
 fi
