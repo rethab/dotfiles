@@ -151,6 +151,13 @@ c() {
   fi
 }
 
+# A 1h cache write bills 2x the base input rate against 1.25x for a 5m one, so
+# the longer TTL only pays for itself if the session actually spans the gap it
+# survives. Short errands pay the premium and then throw the entry away.
+cq() {
+  FORCE_PROMPT_CACHING_5M=1 c "$@"
+}
+
 alias gw='./gradlew'
 
 mw() {
