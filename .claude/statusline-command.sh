@@ -101,11 +101,15 @@ CACHE_WARM_FLOOR=31000
 # the warm floor, or the estimate clamps to zero and the segment reads $0.00.
 CACHE_MIN_CTX=50000
 
-# Minutes are too coarse to steer by on a five-minute cache, where the whole
-# warning window is shorter than two of them.
+# Granularity follows what is left rather than which TTL is in play: the last two
+# minutes are where seconds decide whether to send the next message now or accept
+# the reload, and above that they are noise on a display that repaints every 5s.
+# The 5m cache spends its whole warning window inside that range, the 1h one only
+# reaches it at the very end.
 format_cache_left() {
-    local left=$1 ttl=$2
-    if [[ $ttl -gt $CACHE_TTL_5M && $left -ge 60 ]]; then echo "$((left / 60))m"
+    local left=$1
+    if   [[ $left -ge 120 ]]; then echo "$((left / 60))m"
+    elif [[ $left -ge 60 ]];  then echo "$((left / 60))m $((left % 60))s"
     else echo "${left}s"; fi
 }
 
@@ -173,7 +177,7 @@ cache_segment() {
         if [[ $left -gt $warn_at ]]; then
             printf ' | %scache %s%s' "$col" "$label" "$RESET"
         else
-            printf ' | %scache %s %s%s' "$col" "$label" "$(format_cache_left "$left" "$ttl")" "$RESET"
+            printf ' | %scache %s · %s left%s' "$col" "$label" "$(format_cache_left "$left")" "$RESET"
         fi
         return
     fi
