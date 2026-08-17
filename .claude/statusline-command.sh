@@ -126,7 +126,11 @@ detect_cache_ttl() {
     esac
 }
 
-cache_segment() {
+# Emits the bare parenthetical for the Ctx segment, without a separator or
+# surrounding parens: what the cache costs is a property of the context that is
+# sitting in it, not an independent reading, and as its own pipe-delimited
+# segment it read as unrelated to the percentage it depends on.
+cache_detail() {
     local ctx=$1 mid=$2 path=$3 sid=$4
     [[ -n "$path" && -f "$path" ]] || return
     [[ "$ctx" -ge $CACHE_MIN_CTX ]] 2>/dev/null || return
@@ -175,9 +179,9 @@ cache_segment() {
         # Outside the warning window the TTL still shows, because which one is
         # in play decides whether stepping away for ten minutes is free.
         if [[ $left -gt $warn_at ]]; then
-            printf ' | %scache %s%s' "$col" "$label" "$RESET"
+            printf '%s%s cache%s' "$col" "$label" "$RESET"
         else
-            printf ' | %scache %s · %s left%s' "$col" "$label" "$(format_cache_left "$left")" "$RESET"
+            printf '%s%s cache, %s left%s' "$col" "$label" "$(format_cache_left "$left")" "$RESET"
         fi
         return
     fi
@@ -200,9 +204,10 @@ cache_segment() {
         osascript -e "display notification \"Reloading this ${ctx} token context will cost about \\\$$reload\" with title \"Claude Code cache expired\"" >/dev/null 2>&1 &
         disown 2>/dev/null
     fi
-    # "ago" keeps the age apart from the TTL label the warm segment prints in the
-    # same slot: a bare "COLD 5m" reads as the five-minute cache, not as elapsed.
-    printf ' | %sCOLD %s ago · reload $%s%s' "$RED" "$human" "$reload" "$RESET"
+    # The TTL label is dropped once the entry is gone: which bucket it lived in is
+    # spent history, and printing it beside the elapsed time puts two durations
+    # next to each other again. It comes back on the next write.
+    printf '%scache cold %s ago, reload $%s%s' "$RED" "$human" "$reload" "$RESET"
 }
 
 # A healthy turn only writes the new tail, so the read/write ratio sits near 99%
@@ -493,11 +498,18 @@ status=$(printf '%s%s%s in %s%s%s' "$CYAN" "$model" "$RESET" "$GREEN" "$(basenam
 if [[ -n "$git_branch" ]]; then
     status=$(printf '%s on %s%s%s' "$status" "$MAGENTA" "$git_branch" "$RESET")
 fi
+# The token count is priced from current_usage alone, so this stays outside the
+# has_context check: a payload that carries usage but no window size still has a
+# cache worth reporting, and the cold-cache alert only fires from here.
+cache_note=$(cache_detail "$current" "$model_id" "$transcript" "$session_id")
 if [[ "$has_context" == "true" ]]; then
     ctx_col=$(context_color "$context_percentage" "$size")
     status=$(printf '%s | Ctx: %s%d%%%s' "$status" "$ctx_col" "$context_percentage" "$RESET")
+    [[ -n "$cache_note" ]] && status=$(printf '%s (%s)' "$status" "$cache_note")
+elif [[ -n "$cache_note" ]]; then
+    # No percentage to hang the parenthetical on, so it falls back to a segment.
+    status=$(printf '%s | %s' "$status" "$cache_note")
 fi
-status="${status}$(cache_segment "$current" "$model_id" "$transcript" "$session_id")"
 status="${status}$(cache_miss_segment "$cache_written" "$current")"
 if [[ -n "$usage_info" ]]; then
     status="${status}${usage_info}"
