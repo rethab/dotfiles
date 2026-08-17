@@ -189,10 +189,15 @@ cache_detail() {
     # LC_ALL=C or a comma-decimal locale renders the figure as "$0,62".
     reload=$(LC_ALL=C awk -v c="$ctx" -v f="$CACHE_WARM_FLOOR" -v r="$write_rate" \
         'BEGIN{c-=f; if(c<0)c=0; printf "%.2f", c*r/1000000}')
-    local human
-    if   [[ $age -lt 7200 ]];   then human="$((age/60))m"
-    elif [[ $age -lt 172800 ]]; then human="$((age/3600))h"
-    else human="$((age/86400))d"; fi
+    # The entry survived the whole TTL, so what is being reported is the time
+    # since it expired, not since the last turn — on the 5m cache the two differ
+    # by the entire warning window and the raw idle time reads five minutes too
+    # pessimistic the moment it goes cold.
+    local cold_for=$(( age - ttl )) human
+    if   [[ $cold_for -lt 60 ]];     then human="<1m"
+    elif [[ $cold_for -lt 7200 ]];   then human="$((cold_for/60))m"
+    elif [[ $cold_for -lt 172800 ]]; then human="$((cold_for/3600))h"
+    else human="$((cold_for/86400))d"; fi
 
     # refreshInterval makes this the only thing running on a timer inside a live
     # session, so a warm->cold transition is caught here or not at all. The
