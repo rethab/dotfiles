@@ -21,6 +21,7 @@ ensure_reasons_file() {
 # brew:git:Version control system for development
 # brew-cask:docker:Container development and deployment
 # npm:typescript:Static typing for JavaScript projects
+# uv:ruff:Python linter and formatter
 # mas:Keynote:Presentation software for work presentations
 # custom:app-name:Manually installed applications not managed by package managers
 EOF
@@ -169,6 +170,18 @@ cmd_list() {
     done
 
     echo
+    echo 'UV Tools:'
+    if command -v uv >/dev/null 2>&1; then
+        # uv tool list prints "package vX.Y" lines, with "- executable" lines beneath
+        uv tool list 2>/dev/null | grep -v '^-' | while IFS= read -r line; do
+            [[ -z "$line" ]] && continue
+            show_package_with_reason "uv" "${line%% *}"
+        done
+    else
+        echo "  uv not installed - skipping uv tools"
+    fi
+
+    echo
     echo 'Custom:'
     if command -v claude >/dev/null 2>&1; then
         show_package_with_reason "custom" "claude-code"
@@ -296,6 +309,17 @@ cmd_upgrade() {
         fi
     else
         echo "npm not installed - skipping NPM updates"
+    fi
+
+    echo
+    echo 'UV Tools:'
+    if command -v uv >/dev/null 2>&1; then
+        if ! uv tool upgrade --all; then
+            echo "ERROR: uv tool upgrade failed"
+            upgrade_failed=true
+        fi
+    else
+        echo "uv not installed - skipping uv tool updates"
     fi
 
     echo
