@@ -24,6 +24,25 @@ fi
 # the keychain is only touched by the throttled background fetch below.
 account_seat=$(jq -r '.oauthAccount.seatTier // ""' "$config_json" 2>/dev/null)
 
+# organizationType only tells personal/team/enterprise apart, not plan tier
+# within a personal account (Pro and Max both read "claude_pro") — that split
+# isn't cached anywhere locally, so personal accounts are labeled generically.
+# organizationName is read for the team/enterprise case instead of naming any
+# org in this script, so this repo carries no trace of which org that is.
+IFS=$'\x1e' read -r account_org_type account_org_name <<< "$(jq -r '[
+  (.oauthAccount.organizationType // ""),
+  (.oauthAccount.organizationName // "")
+] | join("")' "$config_json" 2>/dev/null)"
+
+account_label=""
+if [[ "$account_seat" == "enterprise_usage_based" || "$account_org_type" == "claude_enterprise" ]]; then
+    account_label="${account_org_name:-Enterprise}"
+elif [[ "$account_org_type" == "claude_team" ]]; then
+    account_label="${account_org_name:-Team}"
+elif [[ "$account_org_type" == "claude_pro" ]]; then
+    account_label="Pro"
+fi
+
 input=$(</dev/stdin)
 
 # Separated by \x1e like the other multi-field reads below rather than \t: bash
@@ -512,7 +531,9 @@ else
     fi
 fi
 
-status=$(printf '%s%s%s in %s%s%s' "$CYAN" "$model" "$RESET" "$GREEN" "$(basename "$cwd")" "$RESET")
+status=$(printf '%s%s%s' "$CYAN" "$model" "$RESET")
+[[ -n "$account_label" ]] && status=$(printf '%s %s(%s)%s' "$status" "$DIM" "$account_label" "$RESET")
+status=$(printf '%s in %s%s%s' "$status" "$GREEN" "$(basename "$cwd")" "$RESET")
 if [[ -n "$git_branch" ]]; then
     status=$(printf '%s on %s%s%s' "$status" "$MAGENTA" "$git_branch" "$RESET")
 fi
