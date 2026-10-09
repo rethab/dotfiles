@@ -72,6 +72,36 @@ if git -C "$cwd" rev-parse --git-dir > /dev/null 2>&1; then
     git_branch=$(git -C "$cwd" --no-optional-locks rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
 fi
 
+# One porcelain=v2 call yields branch, upstream and ahead/behind plus the dirty
+# entries, so the 5s refresh costs a single git process. Local refs only: this
+# reflects the last fetch and never touches the network.
+git_state=""
+if [[ -n "$git_branch" ]]; then
+    git_dirty=false; git_upstream=false; git_ahead=0; git_behind=0
+    while IFS= read -r line; do
+        case "$line" in
+            "# branch.upstream "*) git_upstream=true ;;
+            "# branch.ab "*)
+                read -r _ _ ab_ahead ab_behind <<< "$line"
+                git_ahead=${ab_ahead#+}; git_behind=${ab_behind#-} ;;
+            "#"*) ;;
+            *) git_dirty=true ;;
+        esac
+    done < <(git -C "$cwd" --no-optional-locks status --porcelain=v2 --branch 2>/dev/null)
+
+    [[ "$git_dirty" == "true" ]] && git_state="${git_state} ${YELLOW}*${RESET}"
+    if [[ "$git_branch" == "HEAD" ]]; then
+        :
+    elif [[ "$git_upstream" == "false" ]]; then
+        # A branch with no upstream has nothing on the remote to compare against,
+        # which is itself the "needs pushing" case.
+        git_state="${git_state} ${YELLOW}unpushed${RESET}"
+    else
+        [[ "$git_ahead" -gt 0 ]] && git_state="${git_state} ${YELLOW}↑${git_ahead}${RESET}"
+        [[ "$git_behind" -gt 0 ]] && git_state="${git_state} ${RED}↓${git_behind}${RESET}"
+    fi
+fi
+
 get_usage_color() {
     local util=${1%.*}
     local low=${2:-50} high=${3:-75}
@@ -536,6 +566,7 @@ status=$(printf '%s%s%s' "$CYAN" "$model" "$RESET")
 status=$(printf '%s in %s%s%s' "$status" "$GREEN" "$(basename "$cwd")" "$RESET")
 if [[ -n "$git_branch" ]]; then
     status=$(printf '%s on %s%s%s' "$status" "$MAGENTA" "$git_branch" "$RESET")
+    status="${status}${git_state}"
 fi
 # The token count is priced from current_usage alone, so this stays outside the
 # has_context check: a payload that carries usage but no window size still has a
