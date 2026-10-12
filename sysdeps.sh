@@ -21,6 +21,7 @@ ensure_reasons_file() {
 # brew:git:Version control system for development
 # brew-cask:docker:Container development and deployment
 # npm:typescript:Static typing for JavaScript projects
+# gh-ext:github/gh-stack:Stacked PRs from the gh cli
 # mas:Keynote:Presentation software for work presentations
 # custom:app-name:Manually installed applications not managed by package managers
 EOF
@@ -169,6 +170,26 @@ cmd_list() {
     done
 
     echo
+    echo 'gh Extensions:'
+    if command -v gh >/dev/null 2>&1; then
+        if ! ext_list=$(gh extension list); then
+            echo "  ERROR: Could not read gh extension list"
+        else
+            # Local extensions have no repo, so fall back to the extension name
+            extensions=$(awk -F'\t' '{ n = $1; sub(/^gh /, "", n); print ($2 != "" ? $2 : n) }' <<< "$ext_list")
+            if [[ -n "$extensions" ]]; then
+                while IFS= read -r extension; do
+                    show_package_with_reason "gh-ext" "$extension"
+                done <<< "$extensions"
+            else
+                echo "  None installed"
+            fi
+        fi
+    else
+        echo "  gh not installed"
+    fi
+
+    echo
     echo 'Custom:'
     if command -v claude >/dev/null 2>&1; then
         show_package_with_reason "custom" "claude-code"
@@ -296,6 +317,17 @@ cmd_upgrade() {
         fi
     else
         echo "npm not installed - skipping NPM updates"
+    fi
+
+    echo
+    echo 'gh Extensions:'
+    if command -v gh >/dev/null 2>&1; then
+        if ! gh extension upgrade --all; then
+            echo "ERROR: gh extension upgrade failed"
+            upgrade_failed=true
+        fi
+    else
+        echo "gh not installed - skipping gh extension updates"
     fi
 
     echo
