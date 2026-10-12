@@ -1,20 +1,75 @@
 #!/bin/zsh -l
 
 # System Dependencies Manager
-# Lists installed packages from brew/npm/mas with reasons from ~/.sysdeps-reasons
-# Upgrades all package managers (brew, sdk, npm, mas)
+# Lists installed packages across all package managers with the reason they
+# were installed (from ~/.sysdeps-reasons), and upgrades all of them.
+#
+# Adding a package manager: write a list_* and/or upgrade_* function and
+# register it in LIST_STEPS / UPGRADE_STEPS.
 
 REASONS_FILE="$HOME/.sysdeps-reasons"
 TIMESTAMP_FILE="$HOME/.sysdeps-last-upgrade"
+MAX_AGE_DAYS=7
+SDKMAN_INIT="$HOME/.sdkman/bin/sdkman-init.sh"
+NVM_INIT="$HOME/.nvm/nvm.sh"
+
+RED=$'\e[31m'
+GREEN=$'\e[32m'
+YELLOW=$'\e[33m'
+RESET=$'\e[0m'
 
 set -e
 
+typeset -A REASONS
+FAILED_STEPS=()
+
+LIST_STEPS=(
+    'Brew Regular'         list_brew
+    'Brew Casks'           list_brew_casks
+    'Brew Trusted'         list_brew_trusted
+    'Mac App Store'        list_mas
+    'NPM'                  list_npm
+    'gh Extensions'        list_gh_extensions
+    'Custom'               list_custom
+    'Claude Code Plugins'  list_claude_plugins
+)
+
+UPGRADE_STEPS=(
+    'Brew'                 upgrade_brew
+    'Mac App Store'        upgrade_mas
+    'sdk'                  upgrade_sdkman
+    'Java'                 upgrade_java
+    'nvm'                  upgrade_node
+    'NPM'                  upgrade_npm
+    'gh Extensions'        upgrade_gh_extensions
+    'Claude Code'          upgrade_claude
+    'Claude Code Plugins'  upgrade_claude_plugins
+)
+
+# --- Helpers ----------------------------------------------------------------
+
+has() {
+    command -v "$1" >/dev/null 2>&1
+}
+
+# Prints a skip notice for the first missing command, so steps can `require x || return 0`
+require() {
+    local cmd
+    for cmd in "$@"; do
+        if ! has "$cmd"; then
+            echo "  $cmd not installed - skipping"
+            return 1
+        fi
+    done
+}
+
 ensure_reasons_file() {
-    if [[ ! -f "$REASONS_FILE" ]]; then
-        echo "Reasons file not found at $REASONS_FILE"
-        if read -q "?Would you like to create it? (y/N): "; then
-            echo
-            cat > "$REASONS_FILE" << 'EOF'
+    [[ -f "$REASONS_FILE" ]] && return 0
+
+    echo "Reasons file not found at $REASONS_FILE"
+    if read -q "?Would you like to create it? (y/N): "; then
+        echo
+        cat > "$REASONS_FILE" << 'EOF'
 # System dependencies reasons file
 # Format: tool:package_name:reason
 # Examples:
@@ -25,77 +80,280 @@ ensure_reasons_file() {
 # mas:Keynote:Presentation software for work presentations
 # custom:app-name:Manually installed applications not managed by package managers
 EOF
-            echo "Created $REASONS_FILE"
-        else
-            echo
-            echo "Continuing without reasons file..."
-        fi
+        echo "Created $REASONS_FILE"
+    else
+        echo
+        echo "Continuing without reasons file..."
     fi
 }
 
-get_reason() {
-    local tool="$1"
-    local package="$2"
-
+load_reasons() {
     [[ -f "$REASONS_FILE" ]] || return 0
 
-    grep "^$tool:$package:" "$REASONS_FILE" 2>/dev/null | cut -d: -f3-
+    local line tool rest
+    while IFS= read -r line; do
+        [[ "$line" == \#* || "$line" != *:*:* ]] && continue
+        tool=${line%%:*}
+        rest=${line#*:}
+        REASONS+=("$tool:${rest%%:*}" "${rest#*:}")
+    done < "$REASONS_FILE"
 }
 
-check_upgrade_freshness() {
-    if [[ ! -f "$TIMESTAMP_FILE" ]]; then
-        echo -e "\033[31m┌─────────────────────────────────────────────────────────────┐\033[0m"
-        echo -e "\033[31m│ ⚠️  WARNING: System dependencies have never been upgraded!  │\033[0m"
-        echo -e "\033[31m│     Run 'sysupgrade' to upgrade all dependencies.           │\033[0m"
-        echo -e "\033[31m└─────────────────────────────────────────────────────────────┘\033[0m"
-        return 1
+# Reads package names from stdin, one per line
+show_reasons() {
+    local tool="$1" package reason found=false
+
+    while IFS= read -r package; do
+        if [[ -n "$package" ]]; then
+            found=true
+            reason=${REASONS[$tool:$package]}
+            if [[ -n "$reason" ]]; then
+                printf "  %-30s - %s\n" "$package" "$reason"
+            else
+                printf "  %-30s - %sWARNING: No reason specified%s\n" "$package" "$YELLOW" "$RESET"
+            fi
+        fi
+    done
+
+    if [[ "$found" == false ]]; then
+        echo "  None"
     fi
-
-    local last_upgrade=$(cat "$TIMESTAMP_FILE" 2>/dev/null)
-    local current_time=$(date +%s)
-    local week_in_seconds=$((7 * 24 * 60 * 60))
-    local time_diff=$((current_time - last_upgrade))
-
-    if [[ $time_diff -gt $week_in_seconds ]]; then
-        local days_old=$((time_diff / (24 * 60 * 60)))
-        local last_upgrade_date=$(date -r "$last_upgrade" "+%Y-%m-%d %H:%M:%S" 2>/dev/null || echo "unknown")
-        echo -e "\033[33m┌─────────────────────────────────────────────────────────────┐\033[0m"
-        echo -e "\033[33m│ ⚠️  WARNING: Dependencies are $days_old days old!                  │\033[0m"
-        echo -e "\033[33m│     Last upgrade: $last_upgrade_date                       │\033[0m"
-        echo -e "\033[33m│     Consider running 'sysupgrade' to update.                │\033[0m"
-        echo -e "\033[33m└─────────────────────────────────────────────────────────────┘\033[0m"
-        return 1
-    fi
-
-    return 0
 }
 
-check_brew_trust() {
+# Takes alternating title/function pairs and records failed steps in FAILED_STEPS
+run_steps() {
+    local title fn first=true
+    local failed_before=${#FAILED_STEPS}
+
+    for title fn in "$@"; do
+        [[ "$first" == true ]] || echo
+        first=false
+        echo "$title:"
+        if ! "$fn"; then
+            echo "  ${RED}ERROR: $title failed${RESET}"
+            FAILED_STEPS+=("$title")
+        fi
+    done
+
+    (( ${#FAILED_STEPS} == failed_before ))
+}
+
+# --- list -------------------------------------------------------------------
+
+list_brew() {
+    brew ls --installed-on-request | show_reasons brew
+}
+
+list_brew_casks() {
+    brew ls --casks -1 | show_reasons brew-cask
+}
+
+list_brew_trusted() {
+    require jq || return 0
+    brew trust --json v1 2>/dev/null \
+        | jq -r '[.taps[], .formulae[], .casks[], .commands[]] | .[]' \
+        | show_reasons brew-trust
+}
+
+list_mas() {
+    require mas || return 0
+    # mas list prints "ID   Name   (Version)"
+    mas list 2>/dev/null \
+        | sed -E 's/^[[:space:]]*[0-9]+[[:space:]]+([^(]+)\([^)]+\)$/\1/; s/[[:space:]]+$//' \
+        | show_reasons mas
+}
+
+list_npm() {
+    require npm || return 0
+    # Skip the prefix dir and the packages bundled with Node
+    npm ls --global --parseable --depth=0 2>/dev/null \
+        | sed 's|.*/||' \
+        | grep -vxE 'lib|npm|corepack' \
+        | show_reasons npm
+}
+
+list_gh_extensions() {
+    require gh || return 0
+
+    local ext_list
+    ext_list=$(gh extension list) || return 1
+
+    # Local extensions have no repo, so fall back to the extension name
+    awk -F'\t' '{ n = $1; sub(/^gh /, "", n); print ($2 != "" ? $2 : n) }' <<< "$ext_list" \
+        | show_reasons gh-ext
+}
+
+list_custom() {
+    require claude || return 0
+    echo claude-code | show_reasons custom
+}
+
+list_claude_plugins() {
+    require claude jq || return 0
+    claude plugin list --json 2>/dev/null | jq -r '.[].id' | show_reasons claude-plugin
+}
+
+# --- upgrade ----------------------------------------------------------------
+# Steps run as `if` conditions, where set -e is suspended, so they must return
+# non-zero themselves on failure.
+
+upgrade_brew() {
     local untrusted
     untrusted=$(brew tap-info --json --installed 2>/dev/null \
         | jq -r '.[] | select(.official == false and .trusted == false) | .name')
 
     if [[ -n "$untrusted" ]]; then
-        echo -e "\033[31mERROR: Untrusted taps detected:\033[0m"
-        echo "$untrusted" | sed 's/^/  /'
-        echo "Trust them with:  brew trust --tap <user>/<tap>"
-        echo "Or remove with:   brew untap <user>/<tap>"
+        echo "  ${RED}Untrusted taps detected:${RESET}"
+        echo "$untrusted" | sed 's/^/    /'
+        echo "  Trust them with:  brew trust --tap <user>/<tap>"
+        echo "  Or remove with:   brew untap <user>/<tap>"
         return 1
     fi
 
-    return 0
+    brew update && brew upgrade --no-ask && brew upgrade --cask --greedy --no-ask
 }
 
-show_package_with_reason() {
-    local tool="$1"
-    local package="$2"
-    local reason
+upgrade_mas() {
+    require mas || return 0
+    mas upgrade
+}
 
-    reason=$(get_reason "$tool" "$package")
-    if [[ -n "$reason" ]]; then
-        printf "  %-30s - %s\n" "$package" "$reason"
+upgrade_sdkman() {
+    require sdk || return 0
+    sdk update && sdk selfupdate
+}
+
+# Moves to the latest patch release of the current major version and vendor
+upgrade_java() {
+    require sdk || return 0
+
+    local current major vendor latest
+    current=$(sdk current java 2>/dev/null | grep -oE '[0-9][0-9.]*-[a-z]+$')
+    if [[ -z "$current" ]]; then
+        echo "  No Java version detected - skipping"
+        return 0
+    fi
+    major=${current%%[.-]*}
+    vendor=${current##*-}
+    echo "  Current: $current (major=$major, vendor=$vendor)"
+
+    latest=$(sdk list java 2>/dev/null \
+        | sed 's/\x1b\[[0-9;]*m//g' \
+        | grep -oE "${major}\.[0-9]+\.[0-9]+(\.[0-9]+)?-${vendor}" \
+        | sort -V \
+        | tail -1)
+
+    # Also guards against downgrading when the current version is no longer listed
+    if [[ -z "$latest" || "$(printf '%s\n' "$current" "$latest" | sort -V | tail -1)" == "$current" ]]; then
+        echo "  Java is up to date"
+        return 0
+    fi
+
+    echo "  Upgrading Java to $latest..."
+    sdk install java "$latest" && sdk default java "$latest"
+}
+
+# Moves to the latest release of the current major version
+upgrade_node() {
+    require nvm node || return 0
+
+    local current major latest
+    current=$(node --version)
+    major=${${current#v}%%.*}
+    latest=$(nvm version-remote "$major") || return 1
+    [[ "$latest" == v* ]] || return 1
+
+    if [[ "$latest" == "$current" ]]; then
+        echo "  Node.js $current is up to date"
+        return 0
+    fi
+
+    echo "  Upgrading Node.js $current to $latest..."
+    # Without this, global npm packages stay behind on the old version
+    nvm install "$latest" --reinstall-packages-from="$current"
+}
+
+upgrade_npm() {
+    require npm || return 0
+    npm update -g
+}
+
+upgrade_gh_extensions() {
+    require gh || return 0
+    gh extension upgrade --all
+}
+
+upgrade_claude() {
+    require claude || return 0
+    claude update
+}
+
+upgrade_claude_plugins() {
+    require claude jq || return 0
+
+    local plugin_json plugin_id plugin_scope failed=false
+    plugin_json=$(claude plugin list --json 2>/dev/null)
+    if [[ -z "$plugin_json" ]] || ! jq -e . <<< "$plugin_json" >/dev/null 2>&1; then
+        echo "  Could not read plugin list"
+        return 1
+    fi
+
+    echo "  Updating $(jq '[.[] | select(.enabled)] | length' <<< "$plugin_json") enabled plugin(s)..."
+    while IFS=$'\t' read -r plugin_id plugin_scope; do
+        [[ -z "$plugin_id" ]] && continue
+        echo "  Updating $plugin_id ($plugin_scope)..."
+        if ! claude plugin update "$plugin_id" --scope "$plugin_scope"; then
+            echo "  ERROR: Plugin update failed for $plugin_id"
+            failed=true
+        fi
+    done < <(jq -r '.[] | select(.enabled) | "\(.id)\t\(.scope)"' <<< "$plugin_json")
+
+    [[ "$failed" == false ]]
+}
+
+# --- Commands ---------------------------------------------------------------
+
+cmd_list() {
+    ensure_reasons_file
+    load_reasons
+    run_steps "${LIST_STEPS[@]}" || true
+}
+
+cmd_upgrade() {
+    if run_steps "${UPGRADE_STEPS[@]}"; then
+        date +%s > "$TIMESTAMP_FILE"
+        echo
+        echo "${GREEN}✓ All upgrades completed successfully!${RESET}"
+        echo "${GREEN}  Timestamp saved to $TIMESTAMP_FILE${RESET}"
     else
-        printf "  %-30s - \033[33mWARNING: No reason specified\033[0m\n" "$package"
+        echo
+        echo "${RED}✗ Failed: ${(j:, :)FAILED_STEPS} - timestamp not updated${RESET}"
+        echo "${RED}  Fix the errors above and run upgrade again${RESET}"
+        return 1
+    fi
+}
+
+cmd_check() {
+    local last_upgrade
+    last_upgrade=$(cat "$TIMESTAMP_FILE" 2>/dev/null) || true
+
+    if [[ "$last_upgrade" != <-> ]]; then
+        echo "${RED}┌─────────────────────────────────────────────────────────────┐${RESET}"
+        echo "${RED}│ ⚠️  WARNING: System dependencies have never been upgraded!  │${RESET}"
+        echo "${RED}│     Run 'sysupgrade' to upgrade all dependencies.           │${RESET}"
+        echo "${RED}└─────────────────────────────────────────────────────────────┘${RESET}"
+        return 1
+    fi
+
+    local days_old=$(( ($(date +%s) - last_upgrade) / 86400 ))
+    if (( days_old >= MAX_AGE_DAYS )); then
+        local last_upgrade_date=$(date -r "$last_upgrade" "+%Y-%m-%d %H:%M:%S")
+        echo "${YELLOW}┌─────────────────────────────────────────────────────────────┐${RESET}"
+        printf "%s│ ⚠️  WARNING: Dependencies are %-30s│%s\n" "$YELLOW" "$days_old days old!" "$RESET"
+        printf "%s│     Last upgrade: %-42s│%s\n" "$YELLOW" "$last_upgrade_date" "$RESET"
+        echo "${YELLOW}│     Consider running 'sysupgrade' to update.                │${RESET}"
+        echo "${YELLOW}└─────────────────────────────────────────────────────────────┘${RESET}"
+        return 1
     fi
 }
 
@@ -115,284 +373,24 @@ Examples:
 EOF
 }
 
-cmd_list() {
-    ensure_reasons_file
-
-    echo 'Brew Regular:'
-    while IFS= read -r package; do
-        show_package_with_reason "brew" "$package"
-    done < <(brew ls --installed-on-request)
-
-    echo
-    echo 'Brew Casks:'
-    while IFS= read -r package; do
-        show_package_with_reason "brew-cask" "$package"
-    done < <(brew ls --casks -1)
-
-    echo
-    echo 'Brew Trusted:'
-    trusted=$(brew trust --json v1 2>/dev/null \
-        | jq -r '[.taps[], .formulae[], .casks[], .commands[]] | .[]')
-    if [[ -n "$trusted" ]]; then
-        while IFS= read -r entry; do
-            show_package_with_reason "brew-trust" "$entry"
-        done <<< "$trusted"
-    else
-        echo "  None trusted"
-    fi
-
-    echo
-    echo 'Mac App Store:'
-    if command -v mas >/dev/null 2>&1; then
-        mas list 2>/dev/null | while IFS= read -r line; do
-            if [[ -n "$line" ]]; then
-                # Parse mas list output: "ID   Name   (Version)"
-                app_name=$(echo "$line" | sed -E 's/^[0-9]+[[:space:]]+([^(]+)[[:space:]]*\([^)]+\)$/\1/' | sed 's/[[:space:]]*$//')
-                if [[ -n "$app_name" ]]; then
-                    show_package_with_reason "mas" "$app_name"
-                fi
-            fi
-        done
-    else
-        echo "  mas not installed - skipping Mac App Store apps"
-    fi
-
-    echo
-    echo 'NPM:'
-    npm ls --global --parseable --depth=0 2>/dev/null | while IFS= read -r pkg_path; do
-        if [[ -n "$pkg_path" ]]; then
-            package="${pkg_path:t}"
-            # Skip Node-bundled packages (npm, corepack) and the prefix dir
-            if [[ "$package" != "npm" && "$package" != "lib" && "$package" != "corepack" ]]; then
-                show_package_with_reason "npm" "$package"
-            fi
-        fi
-    done
-
-    echo
-    echo 'gh Extensions:'
-    if command -v gh >/dev/null 2>&1; then
-        if ! ext_list=$(gh extension list); then
-            echo "  ERROR: Could not read gh extension list"
-        else
-            # Local extensions have no repo, so fall back to the extension name
-            extensions=$(awk -F'\t' '{ n = $1; sub(/^gh /, "", n); print ($2 != "" ? $2 : n) }' <<< "$ext_list")
-            if [[ -n "$extensions" ]]; then
-                while IFS= read -r extension; do
-                    show_package_with_reason "gh-ext" "$extension"
-                done <<< "$extensions"
-            else
-                echo "  None installed"
-            fi
-        fi
-    else
-        echo "  gh not installed"
-    fi
-
-    echo
-    echo 'Custom:'
-    if command -v claude >/dev/null 2>&1; then
-        show_package_with_reason "custom" "claude-code"
-    else
-        echo "  Claude Code not installed"
-    fi
-
-    echo
-    echo 'Claude Code Plugins:'
-    if command -v claude >/dev/null 2>&1; then
-        if command -v jq >/dev/null 2>&1; then
-            while IFS= read -r plugin_id; do
-                [[ -z "$plugin_id" ]] && continue
-                show_package_with_reason "claude-plugin" "$plugin_id"
-            done < <(claude plugin list --json 2>/dev/null | jq -r '.[].id')
-        else
-            echo "  jq not installed - skipping plugin list"
-        fi
-    else
-        echo "  Claude Code not installed"
-    fi
-}
-
-cmd_upgrade() {
-    local upgrade_failed=false
-
-    echo 'Brew:'
-    if ! check_brew_trust; then
-        upgrade_failed=true
-    elif ! (brew update && brew upgrade --no-ask && brew upgrade --cask --greedy --no-ask); then
-        echo "ERROR: Brew upgrade failed"
-        upgrade_failed=true
-    fi
-
-    echo
-    echo 'Mac App Store:'
-    if command -v mas >/dev/null 2>&1; then
-        if ! mas upgrade; then
-            echo "ERROR: Mac App Store upgrade failed"
-            upgrade_failed=true
-        fi
-    else
-        echo "mas not installed - skipping Mac App Store updates"
-    fi
-
-    echo
-    echo 'sdk:'
-    # SDK commands (check if available)
-    if command -v sdk >/dev/null 2>&1; then
-        if ! (sdk update && sdk selfupdate); then
-            echo "ERROR: SDK upgrade failed"
-            upgrade_failed=true
-        fi
-    elif [[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]]; then
-        # Source SDKMAN if available
-        source "$HOME/.sdkman/bin/sdkman-init.sh"
-        if ! (sdk update && sdk selfupdate); then
-            echo "ERROR: SDK upgrade failed"
-            upgrade_failed=true
-        fi
-    else
-        echo "SDK command not found - skipping SDK updates"
-    fi
-
-    # Upgrade Java to latest patch within same major version and vendor
-    if command -v sdk >/dev/null 2>&1; then
-        current_java=$(sdk current java 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+[-\.][a-z]+')
-        if [[ -n "$current_java" ]]; then
-            major=$(echo "$current_java" | cut -d. -f1)
-            vendor=$(echo "$current_java" | sed 's/.*[.-]//')
-            echo "Current Java: $current_java (major=$major, vendor=$vendor)"
-
-            # Find latest available version matching major + vendor from sdk list java
-            # Strip ANSI codes, extract identifiers, filter by major.x.y-vendor, version-sort
-            latest_java=$(sdk list java 2>/dev/null \
-                | sed 's/\x1b\[[0-9;]*m//g' \
-                | grep -oE "${major}\.[0-9]+\.[0-9]+(\.[0-9]+)?-${vendor}" \
-                | sort -V \
-                | tail -1)
-
-            if [[ -n "$latest_java" && "$latest_java" != "$current_java" ]]; then
-                echo "Upgrading Java to $latest_java..."
-                if ! sdk install java "$latest_java"; then
-                    echo "ERROR: Java upgrade failed"
-                    upgrade_failed=true
-                else
-                    sdk default java "$latest_java"
-                fi
-            else
-                echo "Java is up to date"
-            fi
-        else
-            echo "No Java version detected - skipping Java upgrade"
-        fi
-    fi
-
-    echo
-    echo 'nvm:'
-    # nvm is a shell function, source it if not available
-    if ! command -v nvm >/dev/null 2>&1 && [[ -s "$HOME/.nvm/nvm.sh" ]]; then
-        source "$HOME/.nvm/nvm.sh"
-    fi
-    if command -v nvm >/dev/null 2>&1; then
-        current_node=$(node --version 2>/dev/null)
-        if [[ -n "$current_node" ]]; then
-            major=$(echo "$current_node" | sed 's/^v//' | cut -d. -f1)
-            echo "Current: $current_node, upgrading to latest v$major.x..."
-            if ! nvm install "$major"; then
-                echo "ERROR: nvm upgrade failed"
-                upgrade_failed=true
-            fi
-        else
-            echo "No Node.js version detected - skipping nvm upgrade"
-        fi
-    else
-        echo "nvm not found - skipping nvm upgrade"
-    fi
-
-    echo
-    echo 'NPM:'
-    if command -v npm >/dev/null 2>&1; then
-        if ! npm update -g; then
-            echo "ERROR: NPM upgrade failed"
-            upgrade_failed=true
-        fi
-    else
-        echo "npm not installed - skipping NPM updates"
-    fi
-
-    echo
-    echo 'gh Extensions:'
-    if command -v gh >/dev/null 2>&1; then
-        if ! gh extension upgrade --all; then
-            echo "ERROR: gh extension upgrade failed"
-            upgrade_failed=true
-        fi
-    else
-        echo "gh not installed - skipping gh extension updates"
-    fi
-
-    echo
-    echo 'Claude Code:'
-    if command -v claude >/dev/null 2>&1; then
-        if ! claude update; then
-            echo "ERROR: Claude Code upgrade failed"
-            upgrade_failed=true
-        fi
-    else
-        echo "Claude Code not installed - skipping Claude Code updates"
-    fi
-
-    echo
-    echo 'Claude Code Plugins:'
-    if command -v claude >/dev/null 2>&1; then
-        if command -v jq >/dev/null 2>&1; then
-            plugin_json=$(claude plugin list --json 2>/dev/null)
-            if [[ -z "$plugin_json" ]] || ! echo "$plugin_json" | jq -e . >/dev/null 2>&1; then
-                echo "ERROR: Could not read plugin list"
-                upgrade_failed=true
-            else
-                plugin_count=$(echo "$plugin_json" | jq '[.[] | select(.enabled)] | length')
-                echo "  Updating $plugin_count enabled plugin(s)..."
-                while IFS=$'\t' read -r plugin_id plugin_scope; do
-                    [[ -z "$plugin_id" ]] && continue
-                    echo "  Updating $plugin_id ($plugin_scope)..."
-                    if ! claude plugin update "$plugin_id" --scope "$plugin_scope"; then
-                        echo "ERROR: Plugin update failed for $plugin_id"
-                        upgrade_failed=true
-                    fi
-                done < <(echo "$plugin_json" | jq -r '.[] | select(.enabled) | "\(.id)\t\(.scope)"')
-            fi
-        else
-            echo "jq not installed - skipping plugin updates"
-        fi
-    else
-        echo "Claude Code not installed - skipping plugin updates"
-    fi
-
-    # Only update timestamp if all upgrades succeeded
-    if [[ "$upgrade_failed" == "false" ]]; then
-        date +%s > "$TIMESTAMP_FILE"
-        echo
-        echo -e "\033[32m✓ All upgrades completed successfully!\033[0m"
-        echo -e "\033[32m  Timestamp saved to $TIMESTAMP_FILE\033[0m"
-    else
-        echo
-        echo -e "\033[31m✗ Some upgrades failed - timestamp not updated\033[0m"
-        echo -e "\033[31m  Fix the errors above and run upgrade again\033[0m"
-        exit 1
-    fi
-}
-
 case "$1" in
     list)
         cmd_list
         ;;
     upgrade)
+        # sdk and nvm are shell functions that only exist once their init scripts are sourced
+        if ! has sdk && [[ -s "$SDKMAN_INIT" ]]; then
+            source "$SDKMAN_INIT"
+        fi
+        if ! has nvm && [[ -s "$NVM_INIT" ]]; then
+            source "$NVM_INIT"
+        fi
         cmd_upgrade
         echo
         cmd_list
         ;;
     check)
-        check_upgrade_freshness
+        cmd_check
         ;;
     help|--help|-h)
         usage
