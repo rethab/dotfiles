@@ -22,6 +22,7 @@ set -e
 
 typeset -A REASONS
 FAILED_STEPS=()
+MISSING_REASONS=()
 
 LIST_STEPS=(
     'Brew Regular'         list_brew
@@ -99,7 +100,8 @@ load_reasons() {
     done < "$REASONS_FILE"
 }
 
-# Reads package names from stdin, one per line
+# Reads package names from stdin, one per line, and records those without a
+# reason in MISSING_REASONS
 show_reasons() {
     local tool="$1" package reason found=false
 
@@ -111,6 +113,7 @@ show_reasons() {
                 printf "  %-30s - %s\n" "$package" "$reason"
             else
                 printf "  %-30s - %sWARNING: No reason specified%s\n" "$package" "$YELLOW" "$RESET"
+                MISSING_REASONS+=("$tool:$package")
             fi
         fi
     done
@@ -319,6 +322,23 @@ cmd_list() {
     run_steps "${LIST_STEPS[@]}" || true
 }
 
+# Silent unless some package has no reason, in which case it prints the
+# missing keys in the format of the reasons file
+cmd_check_reasons() {
+    local title fn
+
+    load_reasons
+    for title fn in "${LIST_STEPS[@]}"; do
+        "$fn" >/dev/null 2>&1 || true
+    done
+
+    if (( ${#MISSING_REASONS} )); then
+        echo
+        echo "${YELLOW}No reason specified in $REASONS_FILE for:${RESET}"
+        printf '  %s\n' "${MISSING_REASONS[@]}"
+    fi
+}
+
 cmd_upgrade() {
     if run_steps "${UPGRADE_STEPS[@]}"; then
         date +%s > "$TIMESTAMP_FILE"
@@ -386,8 +406,7 @@ case "$1" in
             source "$NVM_INIT"
         fi
         cmd_upgrade
-        echo
-        cmd_list
+        cmd_check_reasons
         ;;
     check)
         cmd_check
