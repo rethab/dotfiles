@@ -144,6 +144,7 @@ c() {
   done
   [ "$has_model" -eq 0 ] && model_args=(--model default)
   export CLAUDE_CODE_NO_FLICKER=1
+  export ENABLE_PROMPT_CACHING_1H=1
   if [ -n "$add_dir" ]; then
     "${config_env[@]}" CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1 claude --add-dir "$add_dir" "${plugin_args[@]}" "${settings_args[@]}" "${mcp_args[@]}" "${model_args[@]}" "$@"
   else
