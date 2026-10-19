@@ -6,8 +6,13 @@
 #
 # Adding a package manager: write a list_* and/or upgrade_* function and
 # register it in LIST_STEPS / UPGRADE_STEPS.
+#
+# Claude Code plugins are handled for ~/.claude plus any extra config dirs
+# (one per line) in ~/.sysdeps-claude-config-dirs, so machine-specific paths
+# stay out of this repo.
 
 REASONS_FILE="$HOME/.sysdeps-reasons"
+CLAUDE_DIRS_FILE="$HOME/.sysdeps-claude-config-dirs"
 TIMESTAMP_FILE="$HOME/.sysdeps-last-upgrade"
 MAX_AGE_DAYS=7
 SDKMAN_INIT="$HOME/.sdkman/bin/sdkman-init.sh"
@@ -123,6 +128,30 @@ show_reasons() {
     fi
 }
 
+extra_claude_config_dirs() {
+    [[ -f "$CLAUDE_DIRS_FILE" ]] || return 0
+
+    local line
+    while IFS= read -r line; do
+        [[ -z "$line" || "$line" == \#* ]] && continue
+        echo "${line/#\~/$HOME}"
+    done < "$CLAUDE_DIRS_FILE"
+}
+
+# An empty dir means the default profile, which needs CLAUDE_CONFIG_DIR unset:
+# pointing it at ~/.claude would also move .claude.json into that dir.
+# Callers must check that a non-empty dir exists, since claude silently
+# creates a fresh profile there otherwise.
+claude_in() {
+    local dir="$1"
+    shift
+    if [[ -n "$dir" ]]; then
+        CLAUDE_CONFIG_DIR="$dir" claude "$@"
+    else
+        env -u CLAUDE_CONFIG_DIR claude "$@"
+    fi
+}
+
 # Takes alternating title/function pairs and records failed steps in FAILED_STEPS
 run_steps() {
     local title fn first=true
@@ -193,7 +222,15 @@ list_custom() {
 
 list_claude_plugins() {
     require claude jq || return 0
-    claude plugin list --json 2>/dev/null | jq -r '.[].id' | show_reasons claude-plugin
+
+    local dir
+    for dir in "" ${(f)"$(extra_claude_config_dirs)"}; do
+        if [[ -n "$dir" && ! -d "$dir" ]]; then
+            echo "  ${RED}Config dir not found: $dir${RESET}" >&2
+            continue
+        fi
+        claude_in "$dir" plugin list --json 2>/dev/null | jq -r '.[].id'
+    done | sort -u | show_reasons claude-plugin
 }
 
 # --- upgrade ----------------------------------------------------------------
@@ -294,18 +331,34 @@ upgrade_claude() {
 upgrade_claude_plugins() {
     require claude jq || return 0
 
+    local dir failed=false
+    for dir in "" ${(f)"$(extra_claude_config_dirs)"}; do
+        upgrade_claude_plugins_in "$dir" || failed=true
+    done
+
+    [[ "$failed" == false ]]
+}
+
+upgrade_claude_plugins_in() {
+    local dir="$1" label="${1:-$HOME/.claude}"
     local plugin_json plugin_id plugin_scope failed=false
-    plugin_json=$(claude plugin list --json 2>/dev/null)
-    if [[ -z "$plugin_json" ]] || ! jq -e . <<< "$plugin_json" >/dev/null 2>&1; then
-        echo "  Could not read plugin list"
+
+    if [[ -n "$dir" && ! -d "$dir" ]]; then
+        echo "  Config dir not found: $dir"
         return 1
     fi
 
-    echo "  Updating $(jq '[.[] | select(.enabled)] | length' <<< "$plugin_json") enabled plugin(s)..."
+    plugin_json=$(claude_in "$dir" plugin list --json 2>/dev/null)
+    if [[ -z "$plugin_json" ]] || ! jq -e . <<< "$plugin_json" >/dev/null 2>&1; then
+        echo "  Could not read plugin list in $label"
+        return 1
+    fi
+
+    echo "  Updating $(jq '[.[] | select(.enabled)] | length' <<< "$plugin_json") enabled plugin(s) in $label..."
     while IFS=$'\t' read -r plugin_id plugin_scope; do
         [[ -z "$plugin_id" ]] && continue
         echo "  Updating $plugin_id ($plugin_scope)..."
-        if ! claude plugin update "$plugin_id" --scope "$plugin_scope"; then
+        if ! claude_in "$dir" plugin update "$plugin_id" --scope "$plugin_scope"; then
             echo "  ERROR: Plugin update failed for $plugin_id"
             failed=true
         fi
