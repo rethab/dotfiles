@@ -48,8 +48,7 @@
     "command": "bash ~/.claude/subagent-statusline.sh"
   },
   "enabledPlugins": {
-    "context7@claude-plugins-official": true,
-    "mattpocock-skills@claude-plugins-official": true
+    "context7@claude-plugins-official": true
   },
   "spinnerVerbs": {
     "mode": "replace",
