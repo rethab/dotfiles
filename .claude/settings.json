@@ -97,6 +97,19 @@
     ]
   },
   "effortLevel": "high",
+  "hooks": {
+    "Notification": [
+      {
+        "matcher": "permission_prompt|idle_prompt|elicitation_dialog",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "printf '%s' '{\"terminalSequence\":\"\\u0007\"}'"
+          }
+        ]
+      }
+    ]
+  },
   "awaySummaryEnabled": false,
   "tui": "fullscreen",
   "voice": {

@@ -21,3 +21,6 @@ keybind = ctrl+a>j=new_split:down
 keybind = ctrl+a>k=new_split:up
 keybind = ctrl+a>l=new_split:right
 keybind = ctrl+a>f=toggle_split_zoom
+
+# 🔔 on the tab that rang; Claude Code rings it via a Notification hook when it needs input
+bell-features = title,border,attention,no-system
