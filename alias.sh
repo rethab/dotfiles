@@ -152,6 +152,39 @@ c() {
   fi
 }
 
+# `claude --resume` only offers sessions started in the current directory; this
+# lists the latest ones of the whole account, so you know where to cd to resume.
+cl() {
+  local config_dir="$(_claude_account_config_dir)"
+  config_dir="${config_dir:-$HOME/.claude}"
+  if [ ! -d "$config_dir/projects" ]; then
+    echo "cl: no sessions in $config_dir" >&2
+    return 1
+  fi
+  local limit=20 shown=0 mtime f cwd shown_cwd title
+  # maxdepth 2 skips subagent transcripts, which live under <session>/subagents/
+  while read -r mtime f; do
+    cwd="$(command grep -m1 '"cwd":"' "$f" | jq -r '.cwd // empty')"
+    # Sessions that never got a prompt have no cwd and can't be resumed anyway
+    [ -z "$cwd" ] && continue
+    case "$cwd" in
+      "$HOME") shown_cwd="~" ;;
+      "$HOME"/*) shown_cwd="~${cwd#"$HOME"}" ;;
+      *) shown_cwd="$cwd" ;;
+    esac
+    # Keep the tail: the repo name says more than the common prefix
+    [ "${#shown_cwd}" -gt 40 ] && shown_cwd="...${shown_cwd: -37}"
+    title="$(command grep -E '"type":"(custom-title|ai-title|last-prompt)"' "$f" | jq -rs '
+      (map(select(.type == "custom-title")) | last | .customTitle)
+      // (map(select(.type == "ai-title")) | last | .aiTitle)
+      // (map(select(.type == "last-prompt")) | last | .lastPrompt)
+      // ""' | tr '\n' ' ' | cut -c1-60)"
+    printf '%s  %-40s  %-60s  %s\n' "$(date -r "$mtime" '+%Y-%m-%d %H:%M')" "$shown_cwd" "$title" "$(basename "$f" .jsonl)"
+    shown=$((shown + 1))
+    [ "$shown" -ge "$limit" ] && break
+  done < <(find "$config_dir/projects" -maxdepth 2 -name '*.jsonl' -exec stat -f '%m %N' {} + | sort -rn)
+}
+
 alias gw='./gradlew'
 
 mw() {
