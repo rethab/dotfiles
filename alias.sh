@@ -185,6 +185,8 @@ cl() {
   done < <(find "$config_dir/projects" -maxdepth 2 -name '*.jsonl' -exec stat -f '%m %N' {} + | sort -rn)
 }
 
+alias cr='c --resume'
+
 alias gw='./gradlew'
 
 mw() {
