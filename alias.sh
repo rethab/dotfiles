@@ -98,14 +98,21 @@ _claude_ensure_otel() {
 }
 
 c() {
-  if [ "$1" != "agents" ] && [ $# -gt 0 ] && [ "${1#-}" = "$1" ]; then
-    set -- -- "$*"
-  fi
   # Scoped to the child rather than exported: a leaked CLAUDE_CONFIG_DIR would
   # silently point a later bare `claude` at the wrong account.
   local account_config_dir="$(_claude_account_config_dir)"
   local config_env=(env -u CLAUDE_CONFIG_DIR)
   [ -n "$account_config_dir" ] && config_env=(env "CLAUDE_CONFIG_DIR=$account_config_dir")
+  # Only subcommands that won't collide with a prompt's first word (see fdfeb34:
+  # `c update all deps` must stay a prompt). `mcp` needs the account's config dir
+  # but none of the session flags below.
+  if [ "$1" = "mcp" ]; then
+    "${config_env[@]}" claude "$@"
+    return
+  fi
+  if [ "$1" != "agents" ] && [ $# -gt 0 ] && [ "${1#-}" = "$1" ]; then
+    set -- -- "$*"
+  fi
   _claude_ensure_otel || return 1
   export CLAUDE_CODE_ENABLE_TELEMETRY=1
   export OTEL_METRICS_EXPORTER=otlp
