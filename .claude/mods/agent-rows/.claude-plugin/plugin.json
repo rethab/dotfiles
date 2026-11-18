@@ -1,0 +1,5 @@
+{
+  "name": "agent-rows",
+  "version": "0.1.0",
+  "description": "Per-agent model, effort, context, cost and cache state in the agent list"
+}
