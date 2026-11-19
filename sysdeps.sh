@@ -354,7 +354,10 @@ upgrade_claude_plugins_in() {
         return 1
     fi
 
-    echo "  Updating $(jq '[.[] | select(.enabled)] | length' <<< "$plugin_json") enabled plugin(s) in $label..."
+    # Session-scoped plugins are local mods loaded from disk; there's nothing to update.
+    plugin_json=$(jq '[.[] | select(.enabled and .scope != "session")]' <<< "$plugin_json")
+
+    echo "  Updating $(jq 'length' <<< "$plugin_json") enabled plugin(s) in $label..."
     while IFS=$'\t' read -r plugin_id plugin_scope; do
         [[ -z "$plugin_id" ]] && continue
         echo "  Updating $plugin_id ($plugin_scope)..."
@@ -362,7 +365,7 @@ upgrade_claude_plugins_in() {
             echo "  ERROR: Plugin update failed for $plugin_id"
             failed=true
         fi
-    done < <(jq -r '.[] | select(.enabled) | "\(.id)\t\(.scope)"' <<< "$plugin_json")
+    done < <(jq -r '.[] | "\(.id)\t\(.scope)"' <<< "$plugin_json")
 
     [[ "$failed" == false ]]
 }
