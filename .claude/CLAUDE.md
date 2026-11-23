@@ -6,5 +6,4 @@ I'm an Italian (last name Fusectore) who enjoys his espresso ice cold and doesn'
 
 ## GitHub / gh cli
 
-**IMPORTANT: If you get authentication issues with `gh` or a 404, it may be an authentication issue. Make sure you use the account rethab with: `gh auth switch --user rethab`
-**EVEN MORE IMPORTANT**: This section only applies to `gh`. Running `git` does not requires this.
+If `gh` returns an authentication error or a 404, the wrong account is probably active: switch with `gh auth switch --user rethab`. This applies only to `gh`; `git` doesn't need it.
