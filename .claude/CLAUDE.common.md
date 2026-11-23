@@ -1,10 +1,10 @@
 # General Notes
 
-- When committing with git, NEVER create a commit with your own name, but don't specify an author and assume there's a global one set
+- When committing, don't set an author: the global git identity is used
 
 - When giving code examples, prefer Java
 
-- Always use Context7 MCP when I need library/API documentation, code generation, setup or configuration steps without me having to explicitly ask.
+- Use Context7 for library or API documentation and setup or configuration steps, without waiting for me to ask.
 
 - Always ask before writing memory
 
@@ -14,7 +14,7 @@
 
 ## GitHub / gh cli
 
-**IMPORTANT**: When creating a PR, don't add "Test Plan" or "Summary" sections. Just write what was changed and why. Focus on the why. Don't include every single change, stay high level.
+PR descriptions have no "Test Plan" or "Summary" sections. Say what changed and why, focusing on the why, at a high level rather than listing every change.
 
 When fetching a PR or an issue from GitHub, use the CLI `gh`.
 
