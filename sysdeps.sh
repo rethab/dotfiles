@@ -354,8 +354,9 @@ upgrade_claude_plugins_in() {
         return 1
     fi
 
-    # Session-scoped plugins are local mods loaded from disk; there's nothing to update.
-    plugin_json=$(jq '[.[] | select(.enabled and .scope != "session")]' <<< "$plugin_json")
+    # Session-scoped plugins are local mods loaded from disk, and @builtin ones ship
+    # inside Claude Code (updated by `claude update`); `plugin update` can't find either.
+    plugin_json=$(jq '[.[] | select(.enabled and .scope != "session" and (.id | endswith("@builtin") | not))]' <<< "$plugin_json")
 
     echo "  Updating $(jq 'length' <<< "$plugin_json") enabled plugin(s) in $label..."
     while IFS=$'\t' read -r plugin_id plugin_scope; do
